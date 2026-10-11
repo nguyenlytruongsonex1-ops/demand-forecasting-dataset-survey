@@ -6,21 +6,21 @@ Bản đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_dataset_du_ba
 
 ## Ba dataset
 
-1. UCI Bike Sharing — một chuỗi theo giờ, có xu hướng
-Một chuỗi lượt thuê xe đạp theo giờ, 2 năm 2011–2012.
-Có thời tiết và lịch; trung bình mỗi giờ tăng khoảng 63% giữa hai năm.
-Dùng để kiểm tra độ bền vững khi phân phối thay đổi theo thời gian trên một chuỗi đơn.
+### 1. UCI Bike Sharing — một chuỗi theo giờ, có xu hướng
+- Một chuỗi lượt thuê xe đạp theo giờ, 2 năm 2011–2012.
+- Có thời tiết và lịch; trung bình mỗi giờ tăng khoảng 63% giữa hai năm.
+- Dùng để kiểm tra độ bền vững khi phân phối thay đổi theo thời gian trên một chuỗi đơn.
 
-2. M5 (Walmart) — nhiều chuỗi theo ngày, dài hạn, phân cấp
-30,490 chuỗi sản phẩm × cửa hàng, 1,941 ngày có nhãn công khai.
-Phân cấp 12 cấp; có giá, sự kiện và SNAP.
-Dùng để kiểm tra khả năng mở rộng, học giữa nhiều chuỗi và độ ổn định dài hạn.
+### 2. M5 (Walmart) — nhiều chuỗi theo ngày, dài hạn, phân cấp
+- 30,490 chuỗi sản phẩm × cửa hàng, 1,941 ngày có nhãn công khai.
+- Phân cấp 12 cấp; có giá, sự kiện và SNAP.
+- Dùng để kiểm tra khả năng mở rộng, học giữa nhiều chuỗi và độ ổn định dài hạn.
 
-3. FreshRetailNet-50K — nhiều chuỗi ngắn, có stockout
-Nhiều chuỗi cửa hàng × sản phẩm.
-Khoảng 90 ngày train và 7 ngày đánh giá.
-Có thông tin bán hàng theo giờ và trạng thái hết hàng.
-Dùng để kiểm tra mô hình trên lịch sử ngắn và dữ liệu nhu cầu bị kiểm duyệt.
+### 3. FreshRetailNet-50K — nhiều chuỗi ngắn, có stockout
+- Nhiều chuỗi cửa hàng × sản phẩm.
+- Khoảng 90 ngày train và 7 ngày đánh giá.
+- Có thông tin bán hàng theo giờ và trạng thái hết hàng.
+- Dùng để kiểm tra mô hình trên lịch sử ngắn và dữ liệu nhu cầu bị kiểm duyệt.
 
 ## Ma trận so sánh
 
