@@ -1,63 +1,58 @@
-# Khảo sát dataset cho bài toán dự báo nhu cầu
+# Khảo sát dataset cho TabM và dự báo nhu cầu
 
-Khảo sát và so sánh ba dataset công khai (UCI Bike Sharing, M5, FreshRetailNet-50K) để chọn dữ liệu cho đề tài dự báo nhu cầu bằng học máy và học sâu. Repo chỉ chứa tài liệu, không chứa dữ liệu gốc.
+Repo này tập hợp các dataset công khai, nhẹ và có citation để học deep learning trên dữ liệu bảng, đặc biệt là TabM, cùng một benchmark forecasting nâng cao.
+
+> **Lưu ý về phạm vi:** Adult, Bank Marketing, Breast Cancer Wisconsin, Wine Quality và Heart Disease là dataset classification/regression dạng bảng, không phải demand time series thuần túy. Chúng phù hợp để smoke-test TabM, preprocessing, calibration, seed variance và benchmark công bằng. Bike Sharing và FreshRetailNet-50K mới là hai dataset có cấu trúc forecasting/demand rõ hơn.
 
 Bản đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_dataset_du_bao_nhu_cau.pdf) (nguồn Markdown: [docs/Khao_sat_dataset_du_bao_nhu_cau.md](docs/Khao_sat_dataset_du_bao_nhu_cau.md)).
 
-## Ba dataset
+## Sáu dataset nhẹ cho benchmark TabM
 
-### 1. UCI Bike Sharing — một chuỗi theo giờ, có xu hướng
-- Một chuỗi lượt thuê xe đạp theo giờ, 2 năm 2011–2012.
-- Có thời tiết và lịch; trung bình mỗi giờ tăng khoảng 63% giữa hai năm.
-- Dùng để kiểm tra độ bền vững khi phân phối thay đổi theo thời gian trên một chuỗi đơn.
+| Dataset | Task | Quy mô / tải UCI | Điểm dùng cho người mới |
+|---|---|---:|---|
+| [Adult / Census Income](https://archive.ics.uci.edu/dataset/2/adult) | Binary classification | 48,842 dòng, 14 feature, 605.7 KB | Mixed categorical/integer, missing values, benchmark chuẩn |
+| [Bank Marketing](https://archive.ics.uci.edu/dataset/222/bank+marketing) | Binary classification | 45,211 dòng, 16 feature, 999.8 KB | Mixed-type, class imbalance, có biến thời gian/campaign |
+| [Breast Cancer Wisconsin (Diagnostic)](https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic) | Binary classification | 569 dòng, 30 feature, 50.1 KB | Smoke test cực nhanh, numerical-only, không missing |
+| [Wine Quality](https://archive.ics.uci.edu/dataset/186/wine+quality) | Regression/classification | 4,898 dòng, 11 feature, 89.2 KB | Target có thứ tự, thử regression và ordinal classification |
+| [Bike Sharing](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset) | Regression/forecasting | 17,389 dòng, 13 feature, 273.4 KB | Chuỗi theo giờ, weather/calendar, temporal split |
+| [Heart Disease](https://archive.ics.uci.edu/dataset/45/heart+disease) | Binary classification | 303 dòng, 13 feature, 125.9 KB | Mixed-type, missing values, repeated CV và calibration |
 
-### 2. M5 (Walmart) — nhiều chuỗi theo ngày, dài hạn, phân cấp
-- 30,490 chuỗi sản phẩm × cửa hàng, 1,941 ngày có nhãn công khai.
-- Phân cấp 12 cấp; có giá, sự kiện và SNAP.
-- Dùng để kiểm tra khả năng mở rộng, học giữa nhiều chuỗi và độ ổn định dài hạn.
+Tất cả sáu dataset UCI đều có DOI và giấy phép CC BY 4.0. Cần cite record UCI và bài gốc tương ứng khi sử dụng.
 
-### 3. FreshRetailNet-50K — nhiều chuỗi ngắn, có stockout
-- Nhiều chuỗi cửa hàng × sản phẩm.
-- Khoảng 90 ngày train và 7 ngày đánh giá.
-- Có thông tin bán hàng theo giờ và trạng thái hết hàng.
-- Dùng để kiểm tra mô hình trên lịch sử ngắn và dữ liệu nhu cầu bị kiểm duyệt.
+## Benchmark forecasting nâng cao được giữ lại
 
-## Ma trận so sánh
+### FreshRetailNet-50K
+- Dataset nhiều chuỗi cửa hàng × sản phẩm, có doanh số theo ngày và hồ sơ theo giờ.
+- Có thông tin stockout/censored demand, promotion, weather và cờ hoạt động.
+- Phù hợp để nghiên cứu latent-demand recovery và forecasting dưới dữ liệu bị kiểm duyệt.
+- Quy mô lớn hơn nhiều so với sáu dataset nhập môn; nên bắt đầu bằng một subset cố định.
+- [Dataset card](https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K) và [bài báo](https://arxiv.org/abs/2505.16319).
 
-| Góc nhìn | Bike Sharing | M5 | FreshRetailNet-50K |
-|---|---|---|---|
-| Tần suất | Giờ | Ngày | Ngày (có hồ sơ giờ) |
-| Số chuỗi | 1 | 30,490 (42,840 khi tính phân cấp) | 50,000 |
-| Độ dài lịch sử | 2 năm | Khoảng 5.4 năm | 97 ngày (90 train + 7 eval) |
-| Độ thưa / số 0 | Không có số 0 | Cao, gián đoạn | Thấp (4.46% số ngày bằng 0) |
-| Biến ngoại sinh | Thời tiết, lịch | Giá, sự kiện, SNAP | Khuyến mãi, thời tiết, cờ hoạt động |
-| Phân cấp | Không | 12 cấp | Thành phố > cửa hàng; 5 cấp sản phẩm |
-| Xu hướng / dịch chuyển | Rõ (+63.2% trung bình `cnt` mỗi giờ) | Chưa đo | Không đánh giá được dài hạn |
-| Nhu cầu bị kiểm duyệt | Không | Không có nhãn | Có nhãn hết hàng theo giờ |
-| Benchmark công bố | Không có chuẩn chung | Bảng xếp hạng, WRMSSE | TFT, WAPE Overall 31.75% → 29.02% (chỉ giai đoạn còn hàng) |
-| Chi phí tính toán | Thấp | Cao (cần lấy mẫu con) | Trung bình |
-| Giấy phép | CC BY 4.0 | Phi thương mại | CC BY 4.0 |
+## Khuyến nghị thứ tự chạy
 
-## Khung phương pháp dự kiến
-
-![Khung phương pháp dự kiến](figures/khung_phuong_phap.png)
-
-Mọi mô hình dùng chung cách chia theo thời gian, đặc trưng và cửa sổ đánh giá; kết quả báo cáo qua nhiều seed, kèm kiểm định thống kê.
+1. **Breast Cancer Wisconsin** hoặc **Heart Disease** để kiểm tra pipeline trong vài giây/phút.
+2. **Wine Quality** để thử regression, target ordinal và seed variance.
+3. **Adult** để xử lý categorical features và missing values.
+4. **Bank Marketing** để kiểm tra mất cân bằng, calibration và feature availability.
+5. **Bike Sharing** để chuyển sang temporal split và forecasting thực sự.
+6. **FreshRetailNet-50K** chỉ sau khi pipeline đã reproducible; dùng subset và khóa version.
 
 ## Nguồn dữ liệu và giấy phép
 
-| Dataset | Link | Giấy phép |
-|---|---|---|
-| UCI Bike Sharing | https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset | CC BY 4.0 |
-| M5 Forecasting – Accuracy | https://www.kaggle.com/competitions/m5-forecasting-accuracy | Theo quy định cuộc thi: chỉ dùng phi thương mại, không phân phối lại |
-| FreshRetailNet-50K | https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K | CC BY 4.0 |
+| Dataset | Nguồn chính | DOI / citation | Giấy phép |
+|---|---|---|---|
+| Adult | UCI dataset 2 | 10.24432/C5XW20 | CC BY 4.0 |
+| Bank Marketing | UCI dataset 222 | 10.24432/C5K306 | CC BY 4.0 |
+| Breast Cancer Wisconsin | UCI dataset 17 | 10.24432/C5DW2B | CC BY 4.0 |
+| Wine Quality | UCI dataset 186 | 10.24432/C56S3T | CC BY 4.0 |
+| Bike Sharing | UCI dataset 275 | 10.24432/C5W894 | CC BY 4.0 |
+| Heart Disease | UCI dataset 45 | 10.24432/C52P4X | CC BY 4.0 |
+| FreshRetailNet-50K | Hugging Face / arXiv | arXiv:2505.16319 | CC BY 4.0 theo dataset card |
 
-## Tài liệu tham khảo
+## Khung phương pháp
 
-1. H. Fanaee-T and J. Gama, "Event labeling combining ensemble detectors and background knowledge," *Progress in Artificial Intelligence*, vol. 2, no. 2–3, pp. 113–127, Jun. 2014, doi: 10.1007/s13748-013-0040-3.
-2. S. Makridakis, E. Spiliotis, and V. Assimakopoulos, "M5 accuracy competition: Results, findings, and conclusions," *International Journal of Forecasting*, vol. 38, no. 4, pp. 1346–1364, 2022, doi: 10.1016/j.ijforecast.2021.11.013.
-3. Y. Wang et al., "FreshRetailNet-50K: A stockout-annotated censored demand dataset for latent demand recovery and forecasting in fresh retail," arXiv:2505.16319v5, 2025.
+![Khung phương pháp dự kiến](figures/khung_phuong_phap.png)
 
-Danh mục đầy đủ (8 tài liệu) nằm trong file PDF.
+Mọi mô hình nên dùng cùng preprocessing, seed, tuning budget và protocol đánh giá. Với dataset có thời gian, split theo thời gian; với dataset classification/regression nhỏ, dùng stratified repeated cross-validation hoặc fixed split và báo rõ giới hạn.
 
-Tác giả: Nguyễn Lý Trường Sơn, 11/10/2026.
+Tác giả: Nguyễn Lý Trường Sơn, 13/10/2026.
