@@ -1,100 +1,161 @@
-# Khảo sát dataset cho bài toán dự báo nhu cầu
+# Khảo sát dataset nhẹ cho TabM và dự báo nhu cầu
 
-Nguyễn Lý Trường Sơn, 11/10/2026.
+**Nguyễn Lý Trường Sơn, 13/10/2026**
 
-## 1. Thông tin dataset
+## 1. Phạm vi và cách đọc báo cáo
 
-| Trường | UCI Bike Sharing (giờ) | M5 Forecasting – Accuracy | FreshRetailNet-50K |
-|---|---|---|---|
-| Nguồn / link | UCI, dataset 275, DOI 10.24432/C5W894 [1][2] | Kaggle [3]; Competitors' Guide [4]; IJF [5] | Hugging Face `Dingdong-Inc/FreshRetailNet-50K` [6]; arXiv:2505.16319 [7] |
-| Lĩnh vực / bài toán | Lượt thuê xe đạp mỗi giờ (Washington D.C.) | Doanh số đơn vị hằng ngày của Walmart | Doanh số hàng tươi sống, có nhãn hết hàng theo giờ |
-| Số mẫu | 1 chuỗi, 17,379 dòng (giờ), 2011–2012 | 30,490 chuỗi sản phẩm × cửa hàng (42,840 chuỗi trên 12 cấp) × 1,941 ngày có nhãn công khai [4][5] | 50,000 chuỗi cửa hàng × sản phẩm; 4,500,000 dòng train + 350,000 dòng eval [6]; 97 ngày (90 train + 7 eval) |
-| Input dimension | 17 cột gốc; 12–13 cột dùng được sau khi loại ID và các cột rò rỉ | 3 file; sau khi ghép dạng dài: 22 cột (lịch, sự kiện, SNAP, giá, ID phân cấp; phép tính, dựa trên [4]) | 19 cột, trong đó 2 cột là mảng 24 giờ; 65 giá trị/dòng khi trải phẳng [6] |
-| Target | `cnt` (số nguyên, 1–977) | Doanh số đơn vị/ngày; horizon 28 ngày [4] | `sale_amount` (số thực, đã nhân hệ số toàn cục) [6]; horizon 7 ngày [7] |
-| Kiểu dữ liệu | Time series 1D, tần suất giờ | Nhiều chuỗi theo ngày, phân cấp | Nhiều chuỗi theo ngày, kèm hồ sơ giờ (ngày × 24) |
-| Split | Không có split chính thức; đề xuất chia theo thời gian tại 2012-09-01 kèm rolling-origin | Chính thức: train d_1–d_1913, val d_1914–d_1941, test d_1942–d_1969 [5] | Chính thức: tách train/eval [6]; theo dữ liệu: train 2024-03-28 → 06-25 (90 ngày), eval 06-26 → 07-02 (7 ngày) |
-| Kích thước | 1.1 MB [1] | 5 file CSV, 450.47 MB [3]; ma trận doanh số khoảng 118 MB (int16, ước tính) | 115 MB parquet [6] |
-| Giấy phép | CC BY 4.0 [1] | Chỉ dùng phi thương mại, không phân phối lại [3] | CC BY 4.0 [6] |
+Báo cáo này chọn sáu dataset nhẹ, công khai và có citation rõ ràng để bắt đầu với TabM/deep learning trên dữ liệu bảng. Sáu bộ gồm Adult, Bank Marketing, Breast Cancer Wisconsin (Diagnostic), Wine Quality, Bike Sharing và Heart Disease. Năm bộ đầu tiên trong danh sách này chủ yếu là classification hoặc regression dạng bảng; chúng không phải demand time series thuần túy. Vì vậy, chúng nên được dùng cho **smoke test, benchmark TabM, preprocessing, calibration và nghiên cứu độ ổn định**, không nên dùng một mình để kết luận về forecasting nhu cầu.
 
-**Vấn đề cần xử lý**
+Bike Sharing có cấu trúc chuỗi theo giờ và FreshRetailNet-50K là benchmark retail demand nâng cao. FreshRetailNet-50K được giữ lại như một dataset mở rộng, nhưng không nằm trong nhóm sáu dataset nhẹ.
 
-Bike Sharing:
+Một nguyên tắc quan trọng là khóa URL, DOI, dataset ID, phiên bản, preprocessing và target mapping trước khi chạy. Các con số dưới đây là metadata từ nguồn chính tại thời điểm khảo sát; kích thước tải có thể thay đổi nếu repository cập nhật file.
 
-- `casual` + `registered` = `cnt`, nên phải loại hai cột này để tránh rò rỉ.
-- Trung bình `cnt` mỗi giờ tăng 63.2% (143.79 → 234.67) từ 2011 sang 2012, vì vậy bắt buộc chia theo thời gian.
-- Thiếu 165 giờ; thời tiết đã chuẩn hóa về [0, 1] [1].
+## 2. Sáu dataset nhẹ được chọn
 
-M5:
+| Dataset | Task gốc | Quy mô | Dạng dữ liệu | Tải chính thức | License / citation | Vai trò đề xuất |
+|---|---|---:|---|---:|---|---|
+| Adult / Census Income [1] | Binary classification | 48,842 dòng, 14 feature | Categorical + integer, có missing | 605.7 KB | CC BY 4.0; DOI 10.24432/C5XW20 | Mixed-type TabM, missing value, fairness caveat |
+| Bank Marketing [2] | Binary classification | 45,211 dòng, 16 feature | Categorical + integer, không missing | 999.8 KB cho archive chính | CC BY 4.0; DOI 10.24432/C5K306 | Imbalance, calibration, feature availability |
+| Breast Cancer Wisconsin (Diagnostic) [3] | Binary classification | 569 dòng, 30 feature | Numerical, không missing | 50.1 KB | CC BY 4.0; DOI 10.24432/C5DW2B | Smoke test rất nhanh, seed variance |
+| Wine Quality [4] | Regression hoặc classification | 4,898 dòng, 11 feature | Numerical, target ordinal, không missing | 89.2 KB | CC BY 4.0; DOI 10.24432/C56S3T | Regression, ordinal target, normalization |
+| Bike Sharing [5] | Regression / forecasting | 17,389 dòng, 13 feature | Theo giờ/ngày, weather + calendar | 273.4 KB | CC BY 4.0; DOI 10.24432/C5W894 | Temporal split, covariates, drift |
+| Heart Disease [6] | Classification | 303 dòng, 13 feature dùng trong thí nghiệm | Categorical + integer + real, có missing | 125.9 KB | CC BY 4.0; DOI 10.24432/C52P4X | Repeated CV, imputation, calibration |
 
-- Định dạng rộng (1,941 cột ngày); dạng dài có 59,181,090 dòng, tốn bộ nhớ.
-- Chuỗi gián đoạn, nhiều số 0 [5]; cần tách số 0 thật khỏi giai đoạn trước khi mở bán [4].
+### 2.1. Adult / Census Income
 
-FreshRetailNet-50K:
+Adult dự đoán một người có thu nhập trên 50.000 USD/năm từ dữ liệu Census 1994. UCI ghi 48,842 instances và 14 features, gồm tuổi, nghề nghiệp, học vấn, tình trạng hôn nhân, chủng tộc, giới tính, giờ làm việc và quốc gia. Hai file dữ liệu chính có kích thước 3.8 MB và 1.9 MB; archive tải xuống là 605.7 KB [1].
 
-- Doanh số bị kiểm duyệt: 19.9% số giờ 6–22h (train) ở trạng thái hết hàng.
-- `holiday_flag` là cờ ngày nghỉ: = 1 vào cuối tuần (25/26 ngày cuối tuần trong train; Chủ nhật 07/04 là ngày làm bù) và 6 ngày lễ chính thức của Trung Quốc rơi vào ngày thường (Thanh Minh, Lao động, Đoan Ngọ 2024) [7][8]; nên tách thêm biến thứ trong tuần.
-- `discount` có giá trị 0 và > 1, trái quy ước [6].
-- Lịch sử 97 ngày (90 train + 7 eval); doanh số đã chuẩn hóa. Bài báo ghi 863 SKU [7], thẻ dữ liệu và dữ liệu có 865 [6].
+Đây là lựa chọn tốt để bắt đầu với TabM vì có cả categorical và integer features, có missing values ở một số trường, và quy mô đủ để chạy nhanh nhưng không quá nhỏ. Có thể dùng Adult để so sánh MLP, TabM-mini, TabM và CatBoost dưới cùng preprocessing. Nên báo ROC-AUC, PR-AUC, log loss và balanced accuracy thay vì chỉ accuracy.
 
-## 2. Ma trận so sánh góc nhìn
+Caveat quan trọng: đây là dữ liệu lịch sử từ Census 1994 và có các biến nhạy cảm như sex/race. `fnlwgt` là survey weight, còn `education` và `education-num` có liên hệ mạnh. Random split không kiểm tra temporal shift hay geographical shift. Nếu nghiên cứu fairness, cần đặt câu hỏi và metric fairness riêng; không được suy ra fairness từ điểm AUC.
 
-| Góc nhìn | Bike Sharing | M5 | FreshRetailNet-50K |
-|---|---|---|---|
-| Tần suất | Giờ | Ngày | Ngày (có hồ sơ giờ) |
-| Quy mô / số chuỗi | 1 | 30,490 (42,840 khi tính phân cấp) | 50,000 |
-| Độ dài lịch sử | 2 năm | Khoảng 5.4 năm | 97 ngày (90 train + 7 eval) |
-| Độ thưa / số 0 | Không có số 0 | Cao, gián đoạn [5] | Thấp (4.46% số ngày bằng 0) |
-| Biến ngoại sinh | Thời tiết, lịch | Giá, sự kiện, SNAP | Khuyến mãi, thời tiết, cờ hoạt động |
-| Cấu trúc phân cấp | Không | 12 cấp [5] | Thành phố > cửa hàng; 5 cấp sản phẩm |
-| Dịch chuyển phân phối / xu hướng | Rõ (+63.2% trung bình `cnt` mỗi giờ, 2012 so với 2011) | Chưa đo (lịch sử 5.4 năm) | Không đánh giá được dài hạn (97 ngày) |
-| Nhu cầu bị kiểm duyệt | Không | Không có nhãn | Có nhãn theo giờ |
-| Benchmark công bố | Không có chuẩn chung | Bảng xếp hạng, WRMSSE [5] | TFT, WAPE nhóm Overall: 31.75% (doanh số thô) → 29.02% (nhu cầu khôi phục bằng TimesNet); chỉ đánh giá trên giai đoạn còn hàng [7, Bảng 3] |
-| Tính mới | Thấp | Thấp | Cao (công bố 2025) |
-| Chi phí tính toán | Thấp | Cao (cần lấy mẫu con) | Trung bình (tập con 1,000 chuỗi: khoảng 14–20 phút trên 8 CPU; toàn bộ 50,000 chuỗi cần nhiều hơn) |
-| Giấy phép | CC BY 4.0 | Phi thương mại | CC BY 4.0 |
+### 2.2. Bank Marketing
 
-Ba dataset bổ sung nhau về tần suất, quy mô và dạng sai lệch của dữ liệu (xu hướng, gián đoạn, kiểm duyệt).
+Bank Marketing mô tả các chiến dịch gọi điện của một ngân hàng Bồ Đào Nha, với mục tiêu dự đoán khách hàng có đăng ký tiền gửi kỳ hạn hay không. UCI ghi bản chính `bank-full.csv` có 45,211 instances và 16 input features; archive chính có kích thước 999.8 KB. UCI cũng cung cấp bản `bank-additional-full.csv` gồm 41,188 mẫu và 20 input features, cùng các bản 10% để thử nghiệm nhanh [2].
 
-## 3. Đánh giá độ phù hợp
+Dataset có categorical, binary và integer features, không có missing values theo metadata UCI. Nó phù hợp để nghiên cứu class imbalance, calibration và sự khác biệt giữa random split với chronological/rolling split. Nên báo ROC-AUC, PR-AUC, log loss, Brier score và calibration curve.
 
-Thang đánh giá: Đạt / Đạt một phần / Hạn chế.
+`duration` là caveat lớn: đây là thời lượng của cuộc gọi hiện tại. Nếu mục tiêu là dự đoán trước khi gọi, giữ `duration` có thể gây leakage hoặc làm thay đổi hoàn toàn ý nghĩa task. Vì vậy nên định nghĩa hai task riêng: post-contact prediction có `duration`, và pre-contact targeting loại `duration`. Không nên dùng accuracy đơn lẻ vì lớp positive ít.
 
-| Tiêu chí | Bike | M5 | FreshRetailNet |
-|---|---|---|---|
-| Số lượng mẫu | Đạt một phần (1 chuỗi) | Đạt | Đạt |
-| Input dimension | Đạt một phần (ít đặc trưng) | Đạt | Đạt |
-| Kiểu dữ liệu time series | Đạt | Đạt | Đạt |
-| Bài toán hồi quy / dự báo | Đạt | Đạt | Đạt |
-| Đủ cấu trúc cho học sâu khai thác | Hạn chế (1 chuỗi, ít chiều) | Đạt một phần (đủ cấu trúc, chi phí cao) | Đạt |
-| Khả thi trên CPU/Colab | Đạt | Hạn chế (bắt buộc lấy mẫu con) | Đạt một phần (tập con 1,000 chuỗi khả thi; toàn bộ cần thêm tài nguyên) |
-| Giấy phép, trích dẫn | Đạt | Đạt một phần (phi thương mại) | Đạt (bài báo chưa bình duyệt) |
-| Benchmark | Hạn chế | Đạt | Đạt một phần |
-| Tính mới | Hạn chế | Hạn chế | Đạt |
+### 2.3. Breast Cancer Wisconsin (Diagnostic)
 
-**Kết luận.** FreshRetailNet-50K làm dataset chính; M5 làm kiểm chứng; Bike Sharing làm đối chứng một chuỗi.
+Breast Cancer Wisconsin (Diagnostic), hay WDBC, có 569 mẫu và 30 features số được trích xuất từ ảnh fine-needle aspirate. Target là chẩn đoán benign hoặc malignant. UCI ghi không có missing values; file `wdbc.data` khoảng 121.2 KB và archive khoảng 50.1 KB [3].
 
-**Phương án đề xuất:** cả ba dataset dùng cùng một câu hỏi nghiên cứu. FreshRetailNet-50K được phân tích sâu (ablation, nhiều seed, kiểm định thống kê). M5 (lấy mẫu con) và Bike Sharing chỉ chạy cấu hình chính để kiểm chứng kết luận.
+WDBC là smoke test phù hợp nhất để kiểm tra pipeline TabM trong thời gian rất ngắn. Có thể bắt đầu bằng Logistic Regression hoặc linear SVM, MLP, TabM-mini và TabM. Vì số mẫu nhỏ, nên dùng repeated stratified cross-validation hoặc nested cross-validation thay vì một train/test split duy nhất. Nên báo ROC-AUC, PR-AUC, sensitivity của lớp malignant, specificity, balanced accuracy và calibration.
 
-## 4. Khung phương pháp dự kiến
+Phải loại cột ID khỏi predictor. Các feature có tương quan mạnh, còn một seed hoặc một split có thể tạo variance lớn. Dữ liệu là feature engineering từ FNA chứ không phải ảnh bệnh lý hoàn chỉnh; kết quả trên WDBC không được diễn giải như hiệu năng lâm sàng hay generalization sang bệnh viện khác.
 
-![Khung phương pháp dự kiến](../figures/khung_phuong_phap.png)
+### 2.4. Wine Quality
 
-Mọi mô hình dùng chung cách chia theo thời gian, đặc trưng và cửa sổ đánh giá; kết quả báo cáo qua nhiều seed, kèm kiểm định thống kê.
+Wine Quality gồm hai file về vang đỏ và vang trắng Vinho Verde. UCI hiển thị 4,898 instances và 11 features cho record chính; file white khoảng 258.2 KB, file red khoảng 82.2 KB và archive khoảng 89.2 KB [4]. Target `quality` là điểm cảm quan từ 0 đến 10, có thứ tự và mất cân bằng. Dataset có thể dùng cho regression hoặc classification.
+
+Đây là dataset nhẹ để kiểm tra TabM regression, normalization, seed variance và ảnh hưởng của ensemble. Nên chạy riêng red/white trước, sau đó mới thử pooled dataset. Với regression, báo RMSE, MAE và R²; với bài toán ordinal classification, dùng macro-F1 hoặc balanced accuracy và ghi rõ mapping lớp.
+
+Không nên gộp red và white rồi coi đó là cùng một task nếu không đưa loại rượu vào thiết kế. Bài gốc của Cortez et al. dùng các metric và protocol khác với nhiều benchmark TabM hiện đại, nên không so sánh trực tiếp một con số RMSE của TabM với MAD hoặc accuracy của bài gốc. Target cực trị hiếm cũng khiến accuracy dễ gây hiểu nhầm.
+
+### 2.5. Bike Sharing
+
+Bike Sharing chứa số lượt thuê xe theo giờ và theo ngày trong hệ thống Capital Bikeshare, cùng thông tin mùa, thời tiết và lịch. UCI ghi 17,389 instances và 13 features; file `hour.csv` khoảng 1.1 MB, `day.csv` khoảng 56.2 KB và archive khoảng 273.4 KB [5].
+
+Đây là dataset phù hợp nhất trong nhóm sáu bộ cho forecasting theo thời gian. Task cơ bản là dự báo `cnt`. Cần loại `casual` và `registered` khỏi input vì tổng của hai cột này bằng `cnt`; `instant` cũng là ID và không nên dùng như feature. Có thể bắt đầu với split theo thời gian, sau đó dùng rolling-origin evaluation. Báo MAE, RMSE và thêm sMAPE hoặc WAPE nếu muốn so sánh theo quy mô.
+
+Một lưu ý về provenance: metadata UCI hiện hiển thị 17,389 instances, trong khi một số bản trích xuất hoặc README cũ có thể ghi 17,379 dòng trong `hour.csv`. Pipeline nên kiểm đếm file thực tế, ghi checksum và giữ nguyên caveat này. Không được random-shuffle toàn bộ dữ liệu nếu mục tiêu là kiểm tra forecast trong tương lai.
+
+### 2.6. Heart Disease
+
+Heart Disease gồm các database Cleveland, Hungary, Switzerland và VA Long Beach. UCI ghi 303 instances, 13 features dùng trong các thí nghiệm phổ biến, mixed categorical/integer/real features và missing values. Archive chính khoảng 125.9 KB [6]. Target nguyên bản `num` có giá trị 0–4; nhiều nghiên cứu nhị phân hóa thành 0 so với 1–4.
+
+Dataset này phù hợp để kiểm tra imputation, repeated stratified cross-validation, calibration và độ nhạy với target mapping. Cần fit imputer và scaler bên trong mỗi training fold. Báo ROC-AUC, PR-AUC, sensitivity, specificity, balanced accuracy và Brier score.
+
+Cần ghi rõ dùng bản Cleveland processed hay gộp nhiều database. Nếu gộp các site, random split có thể che giấu domain shift. Đây là dữ liệu chẩn đoán trên nhóm bệnh nhân lịch sử; không nên diễn giải kết quả như mô hình risk prediction cho dân số hiện đại.
+
+## 3. Dataset forecasting nâng cao được giữ lại: FreshRetailNet-50K
+
+FreshRetailNet-50K là dataset nhiều chuỗi cho bán lẻ hàng tươi sống, có doanh số theo ngày, hồ sơ theo giờ, promotion, weather, cờ hoạt động và nhãn stockout. Dataset card cung cấp bản dữ liệu khoảng 4.5 triệu dòng train và 350 nghìn dòng evaluation, với lịch sử khoảng 90 ngày train và 7 ngày đánh giá; bài báo giới thiệu task latent-demand recovery và forecasting dưới doanh số bị kiểm duyệt [7][8].
+
+Dataset này có giá trị nghiên cứu cao hơn sáu bộ nhẹ khi câu hỏi thực sự là demand forecasting, nhưng chi phí xử lý cao hơn. Nên khóa một subset theo số chuỗi, báo rõ cách lấy mẫu, dùng split train/evaluation có sẵn và không trộn các ngày tương lai vào feature. Cần phân biệt observed sales với latent demand, đồng thời xử lý stockout như censoring chứ không tự động xem là nhu cầu bằng 0.
+
+## 4. So sánh và khuyến nghị lựa chọn
+
+| Góc nhìn | Sáu dataset nhẹ | FreshRetailNet-50K |
+|---|---|---|
+| Mục tiêu chính | Học TabM, preprocessing, baseline, calibration | Demand forecasting nhiều chuỗi và censored demand |
+| Tần suất | Chủ yếu không phải time series; Bike theo giờ/ngày | Ngày + hồ sơ theo giờ |
+| Quy mô | 303–48,842 dòng; tải KB đến MB | Hàng triệu dòng, nhiều chuỗi |
+| Categorical | Adult, Bank, Heart, Bike | Có metadata cửa hàng/sản phẩm và cờ hoạt động |
+| Missing/censoring | Adult/Heart có missing; không có stockout label | Có stockout/censored demand |
+| Compute | CPU hoặc Colab phù hợp | Nên bắt đầu bằng subset |
+| Rủi ro chính | Overfitting, split không phù hợp, target mapping | Leakage theo thời gian, censoring, version/schema |
+| Giá trị cho người mới | Rất cao | Trung bình; nên làm sau smoke test |
+
+### Thứ tự đề xuất
+
+1. **WDBC** hoặc **Heart Disease**: kiểm tra pipeline trong thời gian ngắn.
+2. **Wine Quality**: thử regression và target ordinal.
+3. **Adult**: mixed-type, missing values và metric xác suất.
+4. **Bank Marketing**: imbalance, calibration và feature availability.
+5. **Bike Sharing**: chuyển sang temporal split và forecasting thực sự.
+6. **FreshRetailNet-50K**: chạy subset sau khi pipeline đã tái lập.
+
+## 5. Protocol tối thiểu cho TabM
+
+### Bước 1 — Khóa provenance
+
+Lưu URL, DOI, dataset ID, ngày tải, checksum, phiên bản package và mapping target. Với UCI, ưu tiên record chính thức và `ucimlrepo` hoặc archive download chính thức.
+
+### Bước 2 — Chọn baseline
+
+Tối thiểu gồm một baseline đơn giản phù hợp task, MLP, TabM-mini, TabM và một GBDT như CatBoost hoặc LightGBM. Giữ preprocessing, split và metric nhất quán.
+
+### Bước 3 — Chia dữ liệu đúng task
+
+- WDBC, Heart, Adult và Bank: stratified repeated CV hoặc fixed stratified split; preprocessing fit trong training fold.
+- Wine: tách red/white; ghi rõ regression hay ordinal classification.
+- Bike: temporal split hoặc rolling-origin; không random-shuffle trước split.
+- FreshRetailNet-50K: giữ train/eval chronology và khóa subset.
+
+### Bước 4 — Ngân sách và metric
+
+Bắt đầu với 5 seed cho pilot; nếu muốn so sánh gần protocol của paper TabM, tăng lên 15 seed. Báo mean ± standard deviation hoặc confidence interval, không chỉ best run. Ghi wall-clock, số tham số, peak memory và failed/OOM run.
+
+- Classification: ROC-AUC, PR-AUC, log loss; thêm macro-F1/balanced accuracy khi lệch lớp.
+- Regression: RMSE, MAE và R²; với Bike có thể thêm sMAPE/WAPE nhưng phải định nghĩa zero handling.
+- Forecasting nhiều chuỗi: báo metric theo chuỗi và metric tổng hợp, tránh để chuỗi lớn nhất chi phối toàn bộ kết luận.
+
+### Bước 5 — Ablation rẻ nhưng có giá trị
+
+1. TabM-mini so với TabM, giữ mọi thứ khác cố định.
+2. Số nhánh nhỏ so với `k=32`, nếu compute cho phép.
+3. Random split so với domain-aware/temporal split trên Bank hoặc Bike.
+4. Calibration sau huấn luyện trên Adult, Bank hoặc Heart.
+
+### Bước 6 — Không overclaim
+
+Sáu dataset nhẹ không đủ để kết luận TabM tốt hơn GBDT trong demand forecasting. Một kết luận hợp lệ hơn là: “Trong protocol X trên dataset Y, TabM có metric và chi phí như sau.” Chỉ tuyên bố tổng quát sau khi mở rộng số dataset, audit leakage và cân bằng tuning budget.
+
+## 6. Research directions nhỏ, phù hợp người mới
+
+- **TabM trên WDBC và Heart Disease:** repeated nested CV, so sánh TabM-mini/TabM và calibration.
+- **TabM trên Adult:** ảnh hưởng của categorical encoding, missing-value policy và số nhánh `k`.
+- **Bank Marketing:** `duration` có/không có, random split so với chronological split, đánh giá PR-AUC và calibration.
+- **Wine Quality:** red/white/pooled, regression so với ordinal classification, ablation normalization.
+- **Bike Sharing:** random split so với temporal split; kiểm tra drift từ 2011 sang 2012 và so sánh MLP/TabM/GBDT.
+- **Transfer từ bảng nhỏ sang demand forecasting:** dùng sáu dataset để kiểm tra pipeline và FreshRetailNet-50K để kiểm tra khả năng mở rộng; báo đây là hai nhóm task khác nhau.
 
 ## Tài liệu tham khảo
 
-[1] H. Fanaee-T, "Bike Sharing," UCI Machine Learning Repository, 2013, doi: 10.24432/C5W894. [Online]. Available: https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset. [Accessed: Oct. 11, 2026].
+[1] B. Becker and R. Kohavi, “Adult,” UCI Machine Learning Repository, 1996. DOI: [10.24432/C5XW20](https://doi.org/10.24432/C5XW20). Dataset: https://archive.ics.uci.edu/dataset/2/adult.
 
-[2] H. Fanaee-T and J. Gama, "Event labeling combining ensemble detectors and background knowledge," *Progress in Artificial Intelligence*, vol. 2, no. 2–3, pp. 113–127, Jun. 2014 (published online Nov. 2013), doi: 10.1007/s13748-013-0040-3.
+[2] S. Moro, P. Rita, and P. Cortez, “Bank Marketing,” UCI Machine Learning Repository, 2012/2014. DOI: [10.24432/C5K306](https://doi.org/10.24432/C5K306). Dataset: https://archive.ics.uci.edu/dataset/222/bank+marketing.
 
-[3] A. Howard, inversion, S. Makridakis, and vangelis, "M5 Forecasting - Accuracy," Kaggle, 2020. [Online]. Available: https://www.kaggle.com/competitions/m5-forecasting-accuracy (Data: https://www.kaggle.com/competitions/m5-forecasting-accuracy/data; Rules: https://www.kaggle.com/competitions/m5-forecasting-accuracy/rules). [Accessed: Oct. 11, 2026].
+[3] W. Wolberg, O. Mangasarian, N. Street, and W. Street, “Breast Cancer Wisconsin (Diagnostic),” UCI Machine Learning Repository, 1995/1993. DOI: [10.24432/C5DW2B](https://doi.org/10.24432/C5DW2B). Dataset: https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic.
 
-[4] University of Nicosia (MOFC), "The M5 competition: Competitors' guide," 2020. [Online]. Available: https://github.com/Mcompetitions/M5-methods/blob/master/M5-Competitors-Guide.pdf. [Accessed: Oct. 11, 2026].
+[4] P. Cortez, A. Cerdeira, F. Almeida, T. Matos, and J. Reis, “Wine Quality,” UCI Machine Learning Repository, 2009. DOI: [10.24432/C56S3T](https://doi.org/10.24432/C56S3T). Dataset: https://archive.ics.uci.edu/dataset/186/wine+quality.
 
-[5] S. Makridakis, E. Spiliotis, and V. Assimakopoulos, "M5 accuracy competition: Results, findings, and conclusions," *International Journal of Forecasting*, vol. 38, no. 4, pp. 1346–1364, 2022, doi: 10.1016/j.ijforecast.2021.11.013.
+[5] H. Fanaee-T, “Bike Sharing,” UCI Machine Learning Repository, 2013. DOI: [10.24432/C5W894](https://doi.org/10.24432/C5W894). Dataset: https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset.
 
-[6] Dingdong-Inc, "FreshRetailNet-50K," Hugging Face dataset card, v1.0, 2025. [Online]. Available: https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K. [Accessed: Oct. 11, 2026].
+[6] A. Janosi, W. Steinbrunn, M. Pfisterer, and R. Detrano, “Heart Disease,” UCI Machine Learning Repository, 1988/1989. DOI: [10.24432/C52P4X](https://doi.org/10.24432/C52P4X). Dataset: https://archive.ics.uci.edu/dataset/45/heart+disease.
 
-[7] Y. Wang, J. Gu, L. Long, X. Li, L. Shen, Z. Fu, X. Zhou, and X. Jiang, "FreshRetailNet-50K: A stockout-annotated censored demand dataset for latent demand recovery and forecasting in fresh retail," arXiv:2505.16319v5 [cs.LG], 2025. [Online]. Available: https://arxiv.org/abs/2505.16319. [Accessed: Oct. 11, 2026].
+[7] Dingdong-Inc, “FreshRetailNet-50K,” Hugging Face dataset card, 2025. https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K.
 
-[8] General Office of the State Council of the People's Republic of China, "国务院办公厅关于2024年部分节假日安排的通知 (Notice on the arrangement of certain holidays in 2024)," Guo Ban Fa Ming Dian [2023] No. 7, Oct. 25, 2023. [Online]. Available: https://www.gov.cn/zhengce/content/202310/content_6911527.htm. [Accessed: Oct. 11, 2026].
+[8] Y. Wang, J. Gu, L. Long, X. Li, L. Shen, Z. Fu, X. Zhou, and X. Jiang, “FreshRetailNet-50K: A stockout-annotated censored demand dataset for latent demand recovery and forecasting in fresh retail,” arXiv:2505.16319, 2025. https://arxiv.org/abs/2505.16319.
