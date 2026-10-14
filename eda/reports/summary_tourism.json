@@ -1,0 +1,35 @@
+{
+ "dataset": "tourism",
+ "rows": 109280,
+ "cols": 1,
+ "freq": "tháng",
+ "n_series": 366,
+ "start": "1979-01-01 00:00:00",
+ "end": "2007-09-01 00:00:00",
+ "missing_steps": 0,
+ "dup_ts": 0,
+ "n_na": 0,
+ "len_min": 91,
+ "len_median": 330.0,
+ "len_max": 333,
+ "target_mean": 9969.2,
+ "target_cv": 0.714,
+ "target_skew": 1.116,
+ "target_kurt": 1.042,
+ "target_outlier_pct": 6.97,
+ "trend_strength": 0.928,
+ "seasonal_strength": 0.859,
+ "acf": {
+  "lag1": 0.746,
+  "lag2": 0.612,
+  "lag12": 0.891,
+  "lag24": 0.847
+ },
+ "stationarity": {
+  "không dừng": 358,
+  "trái chiều: ADF nói không dừng, KPSS nói dừng (có thể dừng quanh xu hướng)": 5,
+  "dừng": 2,
+  "trái chiều: ADF nói dừng, KPSS nói không dừng (thường do xu hướng/mùa vụ → kiểm lại sau sai phân)": 1
+ },
+ "top_exog": "không có"
+}

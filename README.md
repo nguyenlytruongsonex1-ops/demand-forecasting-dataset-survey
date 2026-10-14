@@ -56,3 +56,7 @@ Tất cả sáu dataset UCI đều có DOI và giấy phép CC BY 4.0. Cần cit
 Mọi mô hình nên dùng cùng preprocessing, seed, tuning budget và protocol đánh giá. Với dataset có thời gian, split theo thời gian; với dataset classification/regression nhỏ, dùng stratified repeated cross-validation hoặc fixed split và báo rõ giới hạn.
 
 Tác giả: Nguyễn Lý Trường Sơn, 13/10/2026.
+
+## EDA 4 bộ chuỗi thời gian
+
+Thư mục [eda/](eda/) chứa notebook EDA tiếng Việt (đã chạy, có output) cho UCI Bike Sharing, Beijing PM2.5, ETTm1 và Tourism Monthly, kèm bảng so sánh và gợi ý tiền xử lý. Repo không chứa dữ liệu thô; chạy `python eda/scripts/download_data.py` để tải về từ nguồn gốc. Xem [eda/README.md](eda/README.md).

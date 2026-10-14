@@ -1,0 +1,35 @@
+{
+ "dataset": "pm25",
+ "rows": 43824,
+ "cols": 13,
+ "freq": "giờ",
+ "n_series": 1,
+ "start": "2010-01-01 00:00:00",
+ "end": "2014-12-31 23:00:00",
+ "missing_steps": 0,
+ "dup_ts": 0,
+ "n_na": 2067,
+ "target_mean": 98.613,
+ "target_skew": 1.802,
+ "target_kurt": 4.769,
+ "target_cv": 0.933,
+ "target_outlier_pct": 4.246,
+ "trend_strength": 0,
+ "seasonal_strength": 0.411,
+ "acf": {
+  "lag1": 0.965,
+  "lag2": 0.92,
+  "lag6": 0.747,
+  "lag24": 0.398,
+  "lag168": 0.023
+ },
+ "stationarity": {
+  "pm25 giờ (bỏ NA)": "dừng",
+  "pm25 TB ngày": "dừng"
+ },
+ "top_exog": {
+  "Iws": -0.36,
+  "cbwd_NW": -0.332,
+  "DEWP": 0.3
+ }
+}

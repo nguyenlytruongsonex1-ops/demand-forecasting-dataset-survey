@@ -1,0 +1,40 @@
+{
+ "dataset": "ettm1",
+ "rows": 69680,
+ "cols": 7,
+ "freq": "15 phút",
+ "n_series": 1,
+ "start": "2016-07-01 00:00:00",
+ "end": "2018-06-26 19:45:00",
+ "missing_steps": 0,
+ "dup_ts": 0,
+ "n_na": 0,
+ "target_mean": 13.321,
+ "target_skew": 0.967,
+ "target_kurt": 0.771,
+ "target_cv": 0.643,
+ "target_outlier_pct": 2.718,
+ "split_means": {
+  "train": 17.12,
+  "val": 15.57,
+  "test": 4.84
+ },
+ "trend_strength": 0.968,
+ "seasonal_strength": 0.596,
+ "acf": {
+  "lag1": 0.999,
+  "lag4": 0.994,
+  "lag96": 0.94,
+  "lag672": 0.87
+ },
+ "stationarity": {
+  "OT 15p": "trái chiều: ADF nói dừng, KPSS nói không dừng (thường do xu hướng/mùa vụ → kiểm lại sau sai phân)",
+  "OT TB ngày": "không dừng",
+  "OT ngày, sai phân 1": "dừng"
+ },
+ "top_exog": {
+  "MULL": 0.194,
+  "HULL": 0.158,
+  "LULL": 0.137
+ }
+}
