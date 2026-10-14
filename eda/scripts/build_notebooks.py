@@ -175,150 +175,18 @@ print(f"Nhận xét: tương quan Spearman mạnh nhất với pm25: {', '.join(
 (C, SAVE),
 ])
 
-# ---------------------------------------------------------------- ETTm1
-build("eda_03_ettm1.ipynb", [
-(M, """# EDA 3 — ETTm1 (Electricity Transformer Temperature, 15 phút)
-**Nguồn:** https://github.com/zhouhaoyi/ETDataset · **License:** CC BY-ND 4.0 (được dùng, KHÔNG phân phối bản đã sửa → không commit dữ liệu/bản xử lý) · **Paper gốc:** Zhou et al. (2021), *Informer*, AAAI 35(12):11106–11115, DOI 10.1609/aaai.v35i12.17325.
-
-Nhiệt độ dầu máy biến áp `OT` (mục tiêu) và 6 biến tải: HUFL/HULL (tải cao hữu ích/vô ích), MUFL/MULL (trung), LUFL/LULL (thấp). Chia chuẩn trong benchmark: 12/4/4 tháng train/val/test."""),
-(C, SETUP),
-(M, "## 1. Đọc dữ liệu, shape, kiểu"),
-(C, """df = pd.read_csv(RAW/'ETTm1.csv', parse_dates=['date']).rename(columns={'date':'t'})
-print('shape:', df.shape); display(df.head(3)); display(overview(df))
-SUMMARY.update(dataset='ettm1', rows=len(df), cols=df.shape[1]-1, freq='15 phút', n_series=1)"""),
-(M, "## 2. Khoảng thời gian, bước thiếu, trùng lặp"),
-(C, """g, missing = time_gaps(df['t'], '15min'); display(pd.Series(g))
-print('NA:', df.isna().sum().sum(), '| dòng trùng:', df.duplicated().sum())
-const_runs = (df.OT.diff()==0).astype(int); rl = const_runs.groupby((const_runs==0).cumsum()).sum().max()
-print('Đoạn OT không đổi dài nhất (bước):', rl)
-SUMMARY.update(start=g['start'], end=g['end'], missing_steps=g['n_missing_steps'], dup_ts=g['n_duplicated_ts'], n_na=int(df.isna().sum().sum()))
-print(f"Nhận xét: {len(df)} dòng từ {g['start']} đến {g['end']}, {g['n_missing_steps']} bước thiếu, {g['n_duplicated_ts']} mốc trùng, {df.isna().sum().sum()} NA → lưới sạch. Đoạn OT đứng yên dài nhất {rl} bước liên tiếp.")"""),
-(M, "## 3. Thống kê mô tả, phân phối, độ lệch"),
-(C, """num = ['HUFL','HULL','MUFL','MULL','LUFL','LULL','OT']
-st = shape_stats(df[num]); display(st); plot_dists(df, num)
-SUMMARY.update(target_mean=st.loc['OT','mean'], target_skew=st.loc['OT','skew'], target_kurt=st.loc['OT','kurtosis'], target_cv=round(st.loc['OT','std']/st.loc['OT','mean'],3))
-neg = (df[num]<0).mean().mul(100).round(2); print('% giá trị âm theo cột:', neg.to_dict())"""),
-(C, """print(f"Nhận xét: OT TB {st.loc['OT','mean']:.2f}, min {st.loc['OT','min']:.2f}, max {st.loc['OT','max']:.2f}; skew={st.loc['OT','skew']:.2f}, kurtosis={st.loc['OT','kurtosis']:.2f}. "
-      f"Một số biến tải có giá trị âm (vd MULL {neg['MULL']}%, HULL {neg['HULL']}%) → dữ liệu đã được nhà cung cấp biến đổi, không nên lấy log; dùng chuẩn hoá z-score theo tập train như benchmark.")"""),
-(M, "## 4. Outlier (IQR 1.5)"),
-(C, """out = iqr_outliers(df[num]); display(out); SUMMARY['target_outlier_pct'] = out.loc['OT','pct']
-print(f"Nhận xét: OT có {int(out.loc['OT','n_outliers'])} điểm ({out.loc['OT','pct']}%) ngoài IQR; cột tải nhiều outlier nhất: {out.pct.idxmax()} ({out.pct.max()}%).")"""),
-(M, "## 5. Xu hướng & mùa vụ"),
-(C, """s = df.set_index('t')['OT']
-fig, ax = plt.subplots(3,1, figsize=(12,8))
-s.resample('D').mean().plot(ax=ax[0], title='OT TB ngày'); s.resample('MS').mean().plot(ax=ax[0], lw=2)
-s.groupby(s.index.hour).mean().plot(ax=ax[1], title='OT TB theo giờ trong ngày'); s.groupby(s.index.month).mean().plot.bar(ax=ax[2], title='OT TB theo tháng')
-plt.tight_layout(); plt.show()
-n_tr = 12*30*96; n_va = 4*30*96
-parts = {'train': s.iloc[:n_tr], 'val': s.iloc[n_tr:n_tr+n_va], 'test': s.iloc[n_tr+n_va:n_tr+2*n_va]}
-dsplit = pd.DataFrame({k: v.describe() for k,v in parts.items()}).T.round(2); display(dsplit)
-SUMMARY['split_means'] = dsplit['mean'].to_dict()"""),
-(C, """sd = s.resample('D').mean(); sw = stl_strength(sd, period=7, title='STL OT TB ngày (period=7)')
-sday = stl_strength(s, period=96, plot=False); print('STL ngày:', sw, '| STL 15p (period=96):', sday)
-SUMMARY.update(trend_strength=sw['trend_strength'], seasonal_strength=sday['seasonal_strength'])"""),
-(C, """print(f"Nhận xét: TB OT theo split chuẩn train/val/test = {dsplit['mean'].to_dict()} → có trôi phân phối giữa các đoạn (cần chuẩn hoá theo train và cẩn thận khi so sánh). "
-      f"Độ mạnh xu hướng (chuỗi ngày) = {sw['trend_strength']}, mùa ngày (period 96) = {sday['seasonal_strength']} → OT chủ yếu là biến động chậm, mùa ngày yếu.")"""),
-(M, "## 6. ACF/PACF"),
-(C, """acf_pacf(s, lags=200, title='OT (15 phút)')
-ac = autocorrs(s, [1,4,96,96*7]); print(ac); SUMMARY['acf'] = ac
-print(f"Nhận xét: lag1={ac['lag1']} (đúng như review: gần 1) → mô hình naive 'giá trị trước' đã rất mạnh ở chân trời ngắn; phải luôn có baseline naive/seasonal naive. lag96 (1 ngày)={ac['lag96']}, lag672 (1 tuần)={ac['lag672']}.")"""),
-(M, "## 7. Kiểm định dừng"),
-(C, """res = pd.DataFrame([stationarity(s, 'OT 15p'), stationarity(sd, 'OT TB ngày'), stationarity(sd.diff(), 'OT ngày, sai phân 1')]); display(res)
-SUMMARY['stationarity'] = res.set_index('series')['kết luận'].to_dict()
-print('Nhận xét:', '; '.join(f"{r.series}: ADF p={r.ADF_p}, KPSS p={r['KPSS_p(bị chặn 0.01-0.1)']} → {r['kết luận']}" for _, r in res.iterrows()))"""),
-(M, "## 8. Tương quan với biến ngoại sinh (biến tải)"),
-(C, """corr = df[num].corr(method='spearman'); plt.figure(figsize=(7,5)); sns.heatmap(corr, annot=True, fmt='.2f', cmap='RdBu_r', center=0); plt.show()
-c = corr['OT'].drop('OT').sort_values(key=abs, ascending=False); display(c.round(3))
-print('HUFL–MUFL:', round(df.HUFL.corr(df.MUFL),3), '| HULL–MULL:', round(df.HULL.corr(df.MULL),3))
-SUMMARY['top_exog'] = c.round(3).head(3).to_dict()
-print(f"Nhận xét: tương quan với OT: {', '.join(f'{k}={v:.2f}' for k,v in c.items())}. Các biến tải tương quan chéo cao (HUFL–MUFL r={df.HUFL.corr(df.MUFL):.2f}) → đa cộng tuyến; benchmark thường chạy cả hai chế độ univariate (S) và multivariate (M).")"""),
-(C, SAVE),
-])
-
-# ---------------------------------------------------------------- Tourism
-build("eda_04_tourism_monthly.ipynb", [
-(M, """# EDA 4 — Tourism Monthly (Monash, Zenodo 4656096)
-**Nguồn:** https://zenodo.org/records/4656096 · **License:** CC BY 4.0 · **Paper gốc:** Athanasopoulos, Hyndman, Song & Wu (2011), *The tourism forecasting competition*, IJF 27(3):822–844, DOI 10.1016/j.ijforecast.2010.04.009. Phân phối qua Monash Time Series Forecasting Archive (Godahewa et al., 2021, arXiv 2105.06643).
-
-366 chuỗi du lịch theo tháng, dài khác nhau, chân trời dự báo chuẩn 24 tháng, không có biến ngoại sinh. Vì nhiều chuỗi, thống kê được tính **theo từng chuỗi** rồi tóm tắt phân phối."""),
-(C, SETUP),
-(M, "## 1. Đọc dữ liệu (định dạng .tsf), shape, kiểu"),
-(C, """df = read_tsf(RAW/'tourism_monthly_dataset.tsf')
-print('shape (dạng dài):', df.shape, '| số chuỗi:', df.series.nunique()); display(df.head(3)); display(overview(df))
-print('Header .tsf:'); print(''.join(l for l in open(RAW/'tourism_monthly_dataset.tsf', encoding='latin1') if l.startswith('@') and 'data' not in l))
-SUMMARY.update(dataset='tourism', rows=len(df), cols=1, freq='tháng', n_series=df.series.nunique())"""),
-(M, "## 2. Độ dài chuỗi, khoảng thời gian, thiếu, trùng"),
-(C, """per = df.groupby('series').agg(n=('value','size'), start=('t','min'), end=('t','max'), mean=('value','mean'), std=('value','std'),
-        min=('value','min'), n_zero=('value', lambda v: (v==0).sum()), n_na=('value', lambda v: v.isna().sum()))
-per['cv'] = per['std']/per['mean']
-display(per.n.describe().round(1))
-fig, ax = plt.subplots(1,2, figsize=(12,3)); per.n.plot.hist(bins=40, ax=ax[0], title='Độ dài chuỗi (tháng)'); per.start.dt.year.value_counts().sort_index().plot.bar(ax=ax[1], title='Năm bắt đầu'); plt.show()
-print('Bắt đầu sớm nhất/muộn nhất:', per.start.min().date(), per.start.max().date(), '| kết thúc:', per.end.min().date(), per.end.max().date())
-print('NA:', per.n_na.sum(), '| chuỗi có số 0:', (per.n_zero>0).sum(), '| tổng số 0:', per.n_zero.sum(), '| mốc trùng trong chuỗi:', df.duplicated(['series','t']).sum())
-print('Chuỗi ngắn hơn 24+24 tháng (khó vừa có train vừa test 24):', (per.n < 48).sum())
-SUMMARY.update(start=per.start.min(), end=per.end.max(), missing_steps=0, dup_ts=int(df.duplicated(['series','t']).sum()), n_na=int(per.n_na.sum()),
-               len_min=int(per.n.min()), len_median=float(per.n.median()), len_max=int(per.n.max()))"""),
-(C, """print(f"Nhận xét: {len(per)} chuỗi, tổng {len(df)} quan sát; độ dài từ {per.n.min()} đến {per.n.max()} tháng (trung vị {per.n.median():.0f}). "
-      f"Lịch không đồng bộ: bắt đầu từ {per.start.min().year} đến {per.start.max().year} → không nên ghép thành ma trận theo ngày lịch; xử lý theo chỉ số tương đối hoặc padding/mask. "
-      f"{per.n_na.sum()} NA, {(per.n_zero>0).sum()} chuỗi chứa số 0 ({per.n_zero.sum()} điểm).")"""),
-(M, "## 3. Thống kê mô tả & quy mô theo chuỗi"),
-(C, """display(per[['mean','std','min','cv']].describe().round(2))
-print('Tỉ lệ mean lớn nhất / nhỏ nhất giữa các chuỗi:', round(per['mean'].max()/per['mean'].min(),1))
-plt.figure(figsize=(6,3)); np.log10(per['mean']).plot.hist(bins=40, title='log10(mean) theo chuỗi'); plt.show()
-SUMMARY.update(target_mean=round(df.value.mean(),1), target_cv=round(per.cv.median(),3))"""),
-(C, """print(f"Nhận xét: mean theo chuỗi trải từ {per['mean'].min():.1f} đến {per['mean'].max():.0f} (chênh {per['mean'].max()/per['mean'].min():.0f} lần) → BẮT BUỘC chuẩn hoá theo từng chuỗi (scaling per-series) và dùng metric không phụ thuộc thang đo (MASE/sMAPE) như cuộc thi gốc. CV trung vị {per.cv.median():.2f}.")"""),
-(M, "## 4. Phân phối & độ lệch theo chuỗi"),
-(C, """sk = df.groupby('series').value.agg(sk_skew='skew', sk_kurt=lambda v: v.kurt())
-display(sk.describe().round(3)); sk.plot.hist(bins=40, subplots=True, layout=(1,2), figsize=(12,3), sharex=False); plt.show()
-print('Skew của toàn bộ giá trị gộp:', round(df.value.skew(),2), '| % chuỗi skew>1:', round((sk.sk_skew>1).mean()*100,1))
-SUMMARY.update(target_skew=round(sk.sk_skew.median(),3), target_kurt=round(sk.sk_kurt.median(),3))"""),
-(C, """print(f"Nhận xét: skew trung vị theo chuỗi = {sk.sk_skew.median():.2f}, kurtosis trung vị = {sk.sk_kurt.median():.2f}; {(sk.sk_skew>1).mean()*100:.1f}% chuỗi có skew>1. Gộp tất cả giá trị cho skew {df.value.skew():.1f} — con số này chủ yếu phản ánh chênh lệch quy mô giữa chuỗi, không phải hình dạng từng chuỗi.")"""),
-(M, "## 5. Outlier theo chuỗi (IQR 1.5 trên phần dư STL)"),
-(C, """from statsmodels.tsa.seasonal import STL
-rows = []
-for name, v in df.groupby('series').value:
-    v = v.reset_index(drop=True)
-    if len(v) < 36: continue
-    r = STL(v, period=12).fit(); e = r.resid; q1, q3 = e.quantile([.25,.75]); i = q3-q1
-    ft = max(0, 1-e.var()/(r.trend+e).var()); fs = max(0, 1-e.var()/(r.seasonal+e).var())
-    rows.append({'series': name, 'outlier_pct': ((e<q1-1.5*i)|(e>q3+1.5*i)).mean()*100, 'trend_strength': ft, 'seasonal_strength': fs})
-dec = pd.DataFrame(rows).set_index('series'); display(dec.describe().round(3))
-SUMMARY['target_outlier_pct'] = round(dec.outlier_pct.median(),3)
-print(f"Nhận xét: tính trên {len(dec)} chuỗi; tỉ lệ outlier phần dư trung vị {dec.outlier_pct.median():.2f}%, lớn nhất {dec.outlier_pct.max():.2f}% (chuỗi {dec.outlier_pct.idxmax()}).")"""),
-(M, "## 6. Xu hướng & mùa vụ"),
-(C, """fig, ax = plt.subplots(1,2, figsize=(12,3))
-dec[['trend_strength','seasonal_strength']].plot.hist(bins=30, alpha=.6, ax=ax[0], title='Độ mạnh STL theo chuỗi')
-ex = per.n.idxmax(); df[df.series==ex].set_index('t').value.plot(ax=ax[1], title=f'Ví dụ chuỗi dài nhất: {ex}'); plt.show()
-print(dec[['trend_strength','seasonal_strength']].median().round(3).to_dict(), '| % chuỗi mùa vụ mạnh (>0.6):', round((dec.seasonal_strength>.6).mean()*100,1))
-SUMMARY.update(trend_strength=round(dec.trend_strength.median(),3), seasonal_strength=round(dec.seasonal_strength.median(),3))
-_ = stl_strength(df[df.series==ex].value.reset_index(drop=True), period=12, title=f'STL chuỗi {ex}')"""),
-(C, """print(f"Nhận xét: trung vị độ mạnh mùa vụ (period 12) = {dec.seasonal_strength.median():.2f}, xu hướng = {dec.trend_strength.median():.2f}; {(dec.seasonal_strength>.6).mean()*100:.1f}% chuỗi có mùa vụ mạnh (>0.6) → baseline seasonal naive (lag 12) là bắt buộc.")"""),
-(M, "## 7. ACF/PACF (gộp theo chuỗi)"),
-(C, """acs = df.groupby('series').value.apply(lambda v: pd.Series(autocorrs(v.reset_index(drop=True), [1,2,12,24]))).unstack()
-display(acs.describe().round(3)); SUMMARY['acf'] = acs.median().round(3).to_dict()
-acf_pacf(df[df.series==ex].value.reset_index(drop=True), lags=48, title=ex)
-print(f"Nhận xét: trung vị ACF theo chuỗi: lag1={acs.lag1.median():.2f}, lag12={acs.lag12.median():.2f}, lag24={acs.lag24.median():.2f} → đỉnh ở lag 12 xác nhận mùa vụ năm.")"""),
-(M, "## 8. Kiểm định dừng theo chuỗi\n(Không có biến ngoại sinh nên bỏ phần tương quan ngoại sinh.)"),
-(C, """sr = pd.DataFrame([stationarity(v.reset_index(drop=True), n) for n, v in df.groupby('series').value])
-vc = sr['kết luận'].value_counts(); display(vc); display(sr[['ADF_p','KPSS_p(bị chặn 0.01-0.1)']].describe().round(3))
-SUMMARY['stationarity'] = vc.to_dict(); SUMMARY['top_exog'] = 'không có'
-print(f"Nhận xét: trên {len(sr)} chuỗi: " + ', '.join(f'{k}: {v}' for k, v in vc.items()) + ". Phần lớn chuỗi cần sai phân/chuẩn hoá trước khi dùng mô hình giả định dừng.")"""),
-(C, SAVE),
-])
-
 # ---------------------------------------------------------------- Compare
-build("eda_05_so_sanh_va_tien_xu_ly.ipynb", [
-(M, """# EDA 5 — So sánh 4 bộ và gợi ý tiền xử lý
-Đọc `reports/summary_*.json` do 4 notebook trước sinh ra (chạy 01–04 trước)."""),
+build("eda_03_so_sanh_va_tien_xu_ly.ipynb", [
+(M, """# EDA 3 — So sánh 2 bộ và gợi ý tiền xử lý
+Đọc `reports/summary_*.json` do 2 notebook trước sinh ra (chạy 01–02 trước)."""),
 (C, SETUP.replace("SUMMARY = {}  # các số chính, lưu ra reports/ để notebook so sánh dùng lại", "import json")),
-(C, """S = {k: json.load(open(ROOT/'reports'/f'summary_{k}.json')) for k in ['bike','pm25','ettm1','tourism']}
+(C, """S = {k: json.load(open(ROOT/'reports'/f'summary_{k}.json')) for k in ['bike','pm25']}
 cols = ['rows','n_series','freq','start','end','missing_steps','dup_ts','n_na','target_mean','target_cv','target_skew','target_kurt','target_outlier_pct','trend_strength','seasonal_strength']
 tab = pd.DataFrame(S).T[cols]
-tab.insert(0, 'license', ['CC BY 4.0','CC BY 4.0','CC BY-ND 4.0','CC BY 4.0'])
-tab.insert(1, 'mục tiêu', ['cnt','pm2.5','OT','value'])
-tab.insert(2, 'ngoại sinh', ['thời tiết, lịch','khí tượng, hướng gió','6 biến tải','không'])
+tab.insert(0, 'license', ['CC BY 4.0','CC BY 4.0'])
+tab.insert(1, 'mục tiêu', ['cnt','pm2.5'])
+tab.insert(2, 'ngoại sinh', ['thời tiết, lịch','khí tượng, hướng gió'])
 display(tab)
-print('Ghi chú: Tourism lấy trung vị theo chuỗi cho skew/kurt/cv/outlier/STL; missing_steps Tourism = 0 vì mỗi chuỗi liên tục.')
 for k in S: print(k, 'ACF:', S[k]['acf'], '| dừng:', S[k]['stationarity'])"""),
 (M, """## Gợi ý tiền xử lý (dựa trên kết quả ở trên)
 
@@ -326,8 +194,6 @@ for k in S: print(k, 'ACF:', S[k]['acf'], '| dừng:', S[k]['stationarity'])""")
 |---|---|
 | **Bike** | Bỏ `casual`, `registered` (rò rỉ mục tiêu), `instant`; giữ một trong `temp`/`atemp`. Dựng lưới giờ đều, quyết định điền giờ thiếu (0 hoặc nội suy) và đánh dấu bằng cờ. Biến đổi log1p mục tiêu (lệch phải). Chia train/test theo thời gian; chú ý tăng trưởng giữa 2011→2012 (drift) — cân nhắc đặc trưng xu hướng hoặc chuẩn hoá theo cửa sổ. Đặc trưng: giờ, thứ, workingday, lag 24/168. |
 | **PM2.5** | Mục tiêu thiếu theo đoạn: nội suy đoạn ngắn, mask đoạn dài khi tính loss/metric; bỏ 24 giờ đầu toàn NA. log1p mục tiêu (lệch phải nặng). One-hot `cbwd`; `Iws/Is/Ir` là cộng dồn → cân nhắc sai phân. Đỉnh ô nhiễm là tín hiệu thật, không xoá outlier. |
-| **ETTm1** | Không lấy log (có giá trị âm); z-score theo thống kê tập train; dùng split chuẩn 12/4/4 tháng để so với paper. Baseline naive bắt buộc (lag-1 ≈ 1). Không commit/phân phối dữ liệu đã xử lý (CC BY-ND) — chỉ commit code. |
-| **Tourism** | Chuẩn hoá theo từng chuỗi; metric MASE/sMAPE; chân trời 24 tháng, giữ 24 tháng cuối mỗi chuỗi làm test như cuộc thi; xử lý chuỗi độ dài khác nhau bằng cửa sổ trượt/mask; baseline seasonal naive (12). |
 | **Chung** | Chia theo thời gian (không xáo trộn), fit scaler/imputer chỉ trên train, luôn báo cáo baseline naive và seasonal naive. |
 """),
 ])

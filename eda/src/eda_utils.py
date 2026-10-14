@@ -73,17 +73,3 @@ def stl_strength(s, period, robust=False, plot=True, title=""):
     if plot:
         fig = r.plot(); fig.set_size_inches(12, 6); fig.suptitle(title, y=1.01); plt.show()
     return {"trend_strength": round(ft, 3), "seasonal_strength": round(fs, 3)}
-
-def read_tsf(path):
-    """Đọc file .tsf (Monash) thành DataFrame dạng dài: series, t, value."""
-    rows, data = [], False
-    for line in open(path, encoding="latin1"):
-        line = line.strip()
-        if not line or line.startswith("#"): continue
-        if line.lower() == "@data": data = True; continue
-        if not data: continue
-        name, start, vals = line.split(":")
-        v = [np.nan if x == "?" else float(x) for x in vals.split(",")]
-        idx = pd.date_range(pd.to_datetime(start, format="%Y-%m-%d %H-%M-%S"), periods=len(v), freq="MS")
-        rows.append(pd.DataFrame({"series": name, "t": idx, "value": v}))
-    return pd.concat(rows, ignore_index=True)

@@ -57,6 +57,6 @@ Mọi mô hình nên dùng cùng preprocessing, seed, tuning budget và protocol
 
 Tác giả: Nguyễn Lý Trường Sơn, 13/10/2026.
 
-## EDA 4 bộ chuỗi thời gian
+## EDA 2 bộ chuỗi thời gian
 
-Thư mục [eda/](eda/) chứa notebook EDA tiếng Việt (đã chạy, có output) cho UCI Bike Sharing, Beijing PM2.5, ETTm1 và Tourism Monthly, kèm bảng so sánh và gợi ý tiền xử lý. Repo không chứa dữ liệu thô; chạy `python eda/scripts/download_data.py` để tải về từ nguồn gốc. Xem [eda/README.md](eda/README.md).
+Thư mục [eda/](eda/) chứa notebook EDA tiếng Việt (đã chạy, có output) cho UCI Bike Sharing và Beijing PM2.5, kèm bảng so sánh và gợi ý tiền xử lý. Repo không chứa dữ liệu thô; chạy `python eda/scripts/download_data.py` để tải về từ nguồn gốc. Xem [eda/README.md](eda/README.md).
