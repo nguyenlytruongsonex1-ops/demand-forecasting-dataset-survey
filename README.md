@@ -5,7 +5,7 @@ Repository tập trung vào hai chuỗi thời gian công khai, nhẹ và có tr
 1. **UCI Bike Sharing (UCI 275):** số lượt thuê xe theo giờ tại Washington DC.
 2. **Power Consumption of Tetouan City (UCI 849):** phụ tải điện của ba vùng phân phối tại Tetouan, ghi nhận mỗi 10 phút.
 
-Notebook EDA tiếng Việt đã được chạy lại và lưu output. Báo cáo tổng hợp ở [Khao_sat_dataset_du_bao_nhu_cau.docx](Khao_sat_dataset_du_bao_nhu_cau.docx), bản nguồn văn bản thuần ở [docs/Khao_sat_dataset_du_bao_nhu_cau.txt](docs/Khao_sat_dataset_du_bao_nhu_cau.txt). Repository không phân phối dữ liệu thô; script sẽ tải trực tiếp từ UCI.
+Notebook EDA tiếng Việt đã được chạy lại và lưu output. Báo cáo tổng hợp ở [Khao_sat_dataset_du_bao_nhu_cau.docx](Khao_sat_dataset_du_bao_nhu_cau.docx), bản nguồn nghiên cứu ở [docs/Khao_sat_dataset_du_bao_nhu_cau.md](docs/Khao_sat_dataset_du_bao_nhu_cau.md). Báo cáo tuân theo [quy trình 5 bước khảo sát và chuẩn bị dataset](docs/QUY_TRINH_TIM_VA_CHUAN_BI_DATASET.md). Repository không phân phối dữ liệu thô; script sẽ tải trực tiếp từ UCI.
 
 ## Tóm tắt dataset
 
@@ -44,13 +44,15 @@ Notebook EDA tiếng Việt đã được chạy lại và lưu output. Báo cá
 ```text
 README.md
 Khao_sat_dataset_du_bao_nhu_cau.docx
-docs/Khao_sat_dataset_du_bao_nhu_cau.txt
+docs/Khao_sat_dataset_du_bao_nhu_cau.md
+docs/QUY_TRINH_TIM_VA_CHUAN_BI_DATASET.md
 eda/notebooks/eda_01_bike_sharing.ipynb
 eda/notebooks/eda_02_tetouan_power.ipynb
 eda/notebooks/eda_03_so_sanh_va_tien_xu_ly.ipynb
 eda/reports/summary_bike.json
 eda/reports/summary_tetouan.json
 eda/scripts/download_data.py
+eda/scripts/prepare_datasets.py
 eda/scripts/build_notebooks.py
 eda/src/eda_utils.py
 eda/requirements.txt
