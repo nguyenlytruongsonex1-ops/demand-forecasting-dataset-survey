@@ -105,96 +105,104 @@ SUMMARY['top_exog'] = c.round(3).head(3).to_dict()"""),
 (C, SAVE),
 ])
 
-# ---------------------------------------------------------------- PM2.5
-build("eda_02_beijing_pm25.ipynb", [
-(M, """# EDA 2 — Beijing PM2.5 (UCI 381)
-**Nguồn:** https://archive.ics.uci.edu/dataset/381 · **License:** CC BY 4.0 · **Paper gốc:** Liang et al. (2015), *Assessing Beijing's PM2.5 pollution: severity, weather impact, APEC and winter heating*, Proc. Royal Society A 471:20150257, DOI 10.1098/rspa.2015.0257.
-
-Nồng độ PM2.5 theo giờ tại Đại sứ quán Mỹ ở Bắc Kinh, 2010–2014, kèm khí tượng (DEWP điểm sương, TEMP, PRES, cbwd hướng gió, Iws tốc độ gió cộng dồn, Is/Ir số giờ tuyết/mưa cộng dồn). Mục tiêu: `pm2.5`."""),
+# ---------------------------------------------------------------- TETOUAN
+build("eda_02_tetouan_power.ipynb", [
+(M, """# EDA 2 — Power Consumption of Tetouan City (UCI 849)
+**Nguồn:** https://archive.ics.uci.edu/dataset/849 · **License:** CC BY 4.0 · **Paper gốc:** Salam & El Hibaoui (2018), *Comparison of Machine Learning Algorithms for the Power Consumption Prediction: Case Study of Tetouan city*, IEEE IRSEC, DOI 10.1109/IRSEC.2018.8703007.
+Chuỗi phụ tải điện của ba vùng phân phối tại Tetouan, Morocco, ghi nhận mỗi 10 phút trong năm 2017, kèm nhiệt độ, độ ẩm, tốc độ gió và bức xạ. Mục tiêu: dự báo `Zone 1`, `Zone 2`, `Zone 3`.
+> Cách đọc: mỗi phần có ô code, rồi ô **Nhận xét** in ra từ chính số liệu vừa tính."""),
 (C, SETUP),
 (M, "## 1. Đọc dữ liệu, shape, kiểu"),
-(C, """df = pd.read_csv(RAW/'PRSA_data_2010.1.1-2014.12.31.csv')
-df['t'] = pd.to_datetime(df[['year','month','day','hour']]); df = df.rename(columns={'pm2.5':'pm25'})
+(C, """df = pd.read_csv(RAW/'Tetuan City power consumption.csv')
+df['t'] = pd.to_datetime(df['DateTime'])
+df = df.rename(columns={
+    'Zone 1 Power Consumption': 'zone1',
+    'Zone 2  Power Consumption': 'zone2',
+    'Zone 3  Power Consumption': 'zone3',
+})
+targets = ['zone1', 'zone2', 'zone3']
+exog = ['Temperature', 'Humidity', 'Wind Speed', 'general diffuse flows', 'diffuse flows']
 print('shape:', df.shape); display(df.head(3)); display(overview(df))
-SUMMARY.update(dataset='pm25', rows=len(df), cols=df.shape[1]-1, freq='giờ', n_series=1)"""),
-(M, "## 2. Khoảng thời gian, giá trị thiếu, trùng lặp"),
-(C, """g, missing = time_gaps(df['t'], 'h'); display(pd.Series(g))
-na = df.pm25.isna(); runs = na.ne(na.shift()).cumsum()[na].value_counts()
-print(f'pm25 thiếu: {na.sum()} ({na.mean()*100:.2f}%) | số đoạn thiếu liên tiếp: {len(runs)} | đoạn dài nhất: {runs.max()} giờ')
-print('Phân bố độ dài đoạn thiếu:'); display(runs.describe().round(1))
-print('Thiếu theo năm:', df[na].year.value_counts().sort_index().to_dict())
-SUMMARY.update(start=g['start'], end=g['end'], missing_steps=g['n_missing_steps'], dup_ts=g['n_duplicated_ts'], n_na=int(na.sum()))"""),
-(C, """print(f"Nhận xét: lưới giờ đầy đủ ({g['n_missing_steps']} giờ thiếu, {g['n_duplicated_ts']} trùng) nhưng mục tiêu pm25 thiếu {na.sum()} giá trị ({na.mean()*100:.2f}%), "
-      f"chia thành {len(runs)} đoạn, dài nhất {runs.max()} giờ, trung vị {runs.median():.0f} giờ. Đoạn ngắn có thể nội suy; đoạn dài nên che (mask) khi tính loss/đánh giá thay vì nội suy. "
-      f"Năm 2010 có {int((df[na].year==2010).sum())} giá trị thiếu, 24 giờ đầu toàn NA: {df.pm25.iloc[:24].isna().all()}.")"""),
-(M, "## 3. Thống kê mô tả, phân phối, độ lệch"),
-(C, """num = ['pm25','DEWP','TEMP','PRES','Iws','Is','Ir']
-st = shape_stats(df[num]); display(st); plot_dists(df, num)
-display(df.cbwd.value_counts())
-SUMMARY.update(target_mean=st.loc['pm25','mean'], target_skew=st.loc['pm25','skew'], target_kurt=st.loc['pm25','kurtosis'], target_cv=round(st.loc['pm25','std']/st.loc['pm25','mean'],3))
-print('skew log1p(pm25):', round(np.log1p(df.pm25).skew(),3), '| % giờ Is>0:', round((df.Is>0).mean()*100,2), '| % giờ Ir>0:', round((df.Ir>0).mean()*100,2))"""),
-(C, """print(f"Nhận xét: pm25 TB {st.loc['pm25','mean']:.1f}, trung vị {st.loc['pm25','50%']:.0f}, max {st.loc['pm25','max']:.0f} µg/m³; "
-      f"skew={st.loc['pm25','skew']:.2f}, kurtosis={st.loc['pm25','kurtosis']:.2f} → lệch phải nặng; log1p cho skew {np.log1p(df.pm25).skew():.2f}. "
-      f"Iws skew={st.loc['Iws','skew']:.2f}; Is/Ir gần như toàn 0 (Is>0 {(df.Is>0).mean()*100:.2f}%, Ir>0 {(df.Ir>0).mean()*100:.2f}% số giờ) → biến thưa.")"""),
-(M, "## 4. Outlier (IQR 1.5)"),
-(C, """out = iqr_outliers(df[num]); display(out); SUMMARY['target_outlier_pct'] = out.loc['pm25','pct']
-print(f"Nhận xét: {int(out.loc['pm25','n_outliers'])} giờ ({out.loc['pm25','pct']}%) pm25 > {out.loc['pm25','upper']:.0f}; đây là các đợt ô nhiễm thật (giá trị quan trọng nhất cần dự báo) → không xoá; dùng log hoặc loss bền vững.")"""),
-(M, "## 5. Xu hướng & mùa vụ"),
-(C, """s = df.set_index('t')['pm25']
-fig, ax = plt.subplots(3,1, figsize=(12,8))
-s.resample('D').mean().plot(ax=ax[0], lw=.6, title='TB ngày'); s.resample('MS').mean().plot(ax=ax[0], lw=2)
-df.groupby('month').pm25.mean().plot.bar(ax=ax[1], title='TB theo tháng'); df.groupby('hour').pm25.mean().plot(ax=ax[2], title='TB theo giờ trong ngày')
+SUMMARY.update(dataset='tetouan', rows=len(df), cols=df.shape[1]-1, freq='10 phút', n_series=3,
+               target='zone1, zone2, zone3')"""),
+(M, "## 2. Khoảng thời gian, lưới thời gian, missing và trùng"),
+(C, """g, missing = time_gaps(df['t'], '10min'); display(pd.Series(g))
+print('Dòng trùng hoàn toàn:', df.duplicated().sum(), '| NA tổng:', df.isna().sum().sum())
+SUMMARY.update(start=g['start'], end=g['end'], missing_steps=g['n_missing_steps'], dup_ts=g['n_duplicated_ts'], n_na=int(df.isna().sum().sum()))"""),
+(C, """print(f"Nhận xét: có {g['n_expected']} mốc 10 phút kỳ vọng, thiếu {g['n_missing_steps']} mốc và có {g['n_duplicated_ts']} timestamp trùng. "
+      f"Dữ liệu có {df.isna().sum().sum()} NA trong ô. Đây là lưới thời gian sạch, thuận lợi cho tạo cửa sổ DL và đánh giá multi-step.")"""),
+(M, "## 3. Thống kê mô tả và phân phối target"),
+(C, """num = targets + exog
+st = shape_stats(df[num]); display(st)
+plot_dists(df, targets)
+SUMMARY['target_summary'] = st.loc[targets, ['mean','50%','std','min','max','skew','kurtosis']].to_dict('index')
+SUMMARY['target_mean'] = round(float(st.loc['zone1', 'mean']), 3)
+SUMMARY['target_skew'] = round(float(st.loc['zone1', 'skew']), 3)
+SUMMARY['target_kurt'] = round(float(st.loc['zone1', 'kurtosis']), 3)
+SUMMARY['target_cv'] = round(float(st.loc['zone1', 'std'] / st.loc['zone1', 'mean']), 3)
+print('Skew log1p:', {c: round(np.log1p(df[c]).skew(), 3) for c in targets})"""),
+(C, """print('Nhận xét: ba vùng có quy mô và phân phối khác nhau; cần scale từng target hoặc dùng loss có trọng số nếu huấn luyện multi-output. '
+      'Kiểm tra log1p trước khi dùng nếu muốn giảm ảnh hưởng của các đỉnh phụ tải.')"""),
+(M, "## 4. Outlier theo IQR"),
+(C, """out = iqr_outliers(df[targets]); display(out)
+SUMMARY['target_outlier_pct'] = float(out.loc['zone1', 'pct'])
+print('Nhận xét: các điểm vượt IQR có thể là giờ cao điểm thật. Không nên xoá tự động; cần đối chiếu theo thời gian và đánh giá thêm bằng loss bền vững.')"""),
+(M, "## 5. Xu hướng, mùa vụ và tương quan giữa ba vùng"),
+(C, """hourly = df.set_index('t')[targets].resample('h').mean()
+fig, ax = plt.subplots(3, 1, figsize=(12, 8))
+hourly.resample('D').mean().plot(ax=ax[0], title='Phụ tải trung bình ngày')
+hourly.groupby(hourly.index.hour).mean().plot(ax=ax[1], title='Phụ tải trung bình theo giờ')
+hourly.groupby(hourly.index.dayofweek).mean().plot(ax=ax[2], title='Phụ tải trung bình theo thứ trong tuần')
 plt.tight_layout(); plt.show()
-yr = df.groupby('year').pm25.mean().round(1); mo = df.groupby('month').pm25.mean(); hr = df.groupby('hour').pm25.mean()
-print('TB theo năm:', yr.to_dict())"""),
-(C, """sd = s.resample('D').mean().interpolate()
-sw = stl_strength(sd, period=7, title='STL TB ngày (period=7)')
-sh = s.interpolate(limit_direction='both')
-sday = stl_strength(sh, period=24, plot=False)
-print('STL ngày (period 7):', sw, '| STL giờ (period 24):', sday)
-SUMMARY.update(trend_strength=sw['trend_strength'], seasonal_strength=sday['seasonal_strength'])"""),
-(C, """print(f"Nhận xét: TB theo năm {yr.to_dict()} → không có xu hướng đơn điệu mạnh. Tháng cao nhất {mo.idxmax()} ({mo.max():.0f}), thấp nhất {mo.idxmin()} ({mo.min():.0f}) → mùa đông (sưởi) ô nhiễm hơn. "
-      f"Theo giờ: cao nhất {hr.idxmax()}h ({hr.max():.0f}), thấp nhất {hr.idxmin()}h ({hr.min():.0f}). Độ mạnh mùa ngày STL = {sday['seasonal_strength']} (mức vừa); STL chuỗi ngày period 7 = {sw} → gần như không có mùa vụ tuần, biến động chủ yếu theo đợt thời tiết.")"""),
-(M, "## 6. ACF/PACF"),
-(C, """acf_pacf(sh, lags=100, title='pm25 (giờ, đã nội suy cho vẽ)')
-ac = autocorrs(s, [1,2,6,24,168]); print(ac); SUMMARY['acf'] = ac
-print(f"Nhận xét: lag1={ac['lag1']} rất cao nhưng giảm nhanh (lag24={ac['lag24']}, lag168={ac['lag168']}) → chuỗi có quán tính ngắn hạn, dự báo xa sẽ khó; PACF gợi ý vài lag đầu là chính.")"""),
-(M, "## 7. Kiểm định dừng"),
-(C, """res = pd.DataFrame([stationarity(s.dropna(), 'pm25 giờ (bỏ NA)'), stationarity(sd, 'pm25 TB ngày')]); display(res)
+monthly = hourly.groupby(hourly.index.month).mean(); print('TB theo tháng:'); display(monthly.round(1))
+print('Tương quan Pearson giữa các target:'); display(df[targets].corr().round(3))"""),
+(C, """stl = stl_strength(hourly['zone1'], period=24, title='STL Zone 1 sau khi lấy trung bình theo giờ')
+SUMMARY.update(trend_strength=stl['trend_strength'], seasonal_strength=stl['seasonal_strength'])
+print(f"Nhận xét: sau khi quy về giờ, Zone 1 có độ mạnh mùa vụ ngày STL={stl['seasonal_strength']} và độ mạnh xu hướng={stl['trend_strength']}. "
+      'Nên kiểm tra thêm mùa vụ tuần và sự khác nhau giữa các vùng trước khi chọn window length.')"""),
+(M, "## 6. ACF/PACF và kiểm định dừng"),
+(C, """s = hourly['zone1']
+acf_pacf(s, lags=200, title='Zone 1 (trung bình theo giờ)')
+ac = autocorrs(s, [1, 3, 6, 24, 168]); print(ac); SUMMARY['acf'] = ac
+res = pd.DataFrame([stationarity(s, 'Zone 1 theo giờ')]); display(res)
 SUMMARY['stationarity'] = res.set_index('series')['kết luận'].to_dict()
-print('Nhận xét:', '; '.join(f"{r.series}: ADF p={r.ADF_p}, KPSS p={r['KPSS_p(bị chặn 0.01-0.1)']} → {r['kết luận']}" for _, r in res.iterrows()))"""),
-(M, "## 8. Tương quan với biến ngoại sinh"),
-(C, """d2 = pd.get_dummies(df[['pm25','DEWP','TEMP','PRES','Iws','Is','Ir','cbwd']], columns=['cbwd'], dtype=float)
-corr = d2.corr(method='spearman'); plt.figure(figsize=(8,6)); sns.heatmap(corr, annot=True, fmt='.2f', cmap='RdBu_r', center=0, annot_kws={'size':7}); plt.show()
-c = corr['pm25'].drop('pm25').sort_values(key=abs, ascending=False); display(c.round(3))
-display(df.groupby('cbwd').pm25.agg(['mean','median','count']).round(1))
-SUMMARY['top_exog'] = c.round(3).head(3).to_dict()"""),
-(C, """bw = df.groupby('cbwd').pm25.mean()
-print(f"Nhận xét: tương quan Spearman mạnh nhất với pm25: {', '.join(f'{k}={v:.2f}' for k,v in c.head(4).items())}. "
-      f"Hướng gió quan trọng: TB pm25 khi gió {bw.idxmax()} là {bw.max():.0f}, khi gió {bw.idxmin()} là {bw.min():.0f}. Iws là tốc độ gió CỘNG DỒN (reset khi đổi hướng) → cân nhắc sai phân.")"""),
+print(f"Nhận xét: ACF lag1={ac['lag1']}, lag24={ac['lag24']}, lag168={ac['lag168']}; lag 24 và 168 giúp kiểm tra mùa ngày/tuần. "
+      'Kết quả ADF/KPSS chỉ là chẩn đoán; mô hình DL vẫn cần validation theo thời gian.')"""),
+(M, "## 7. Tương quan với biến ngoại sinh"),
+(C, """corr = df[targets + exog].corr(method='spearman')
+plt.figure(figsize=(10, 7)); sns.heatmap(corr, annot=True, fmt='.2f', cmap='RdBu_r', center=0, annot_kws={'size':7}); plt.show()
+c = corr['zone1'].drop(targets).sort_values(key=abs, ascending=False); display(c.round(3))
+SUMMARY['top_exog'] = c.round(3).head(3).to_dict()
+print(f"Nhận xét: các ngoại sinh liên quan Zone 1 mạnh nhất theo Spearman: {', '.join(f'{k}={v:.2f}' for k,v in c.head(3).items())}. "
+      'Khi dự báo nhiều bước, chỉ dùng ngoại sinh thực sự có sẵn hoặc dùng giá trị dự báo/lag của chúng.')"""),
 (C, SAVE),
 ])
-
-# ---------------------------------------------------------------- Compare
+# ---------------------------------------------------------------- COMPARE
 build("eda_03_so_sanh_va_tien_xu_ly.ipynb", [
 (M, """# EDA 3 — So sánh 2 bộ và gợi ý tiền xử lý
-Đọc `reports/summary_*.json` do 2 notebook trước sinh ra (chạy 01–02 trước)."""),
+Đọc `reports/summary_*.json` do hai notebook trước sinh ra (chạy 01–02 trước)."""),
 (C, SETUP.replace("SUMMARY = {}  # các số chính, lưu ra reports/ để notebook so sánh dùng lại", "import json")),
-(C, """S = {k: json.load(open(ROOT/'reports'/f'summary_{k}.json')) for k in ['bike','pm25']}
-cols = ['rows','n_series','freq','start','end','missing_steps','dup_ts','n_na','target_mean','target_cv','target_skew','target_kurt','target_outlier_pct','trend_strength','seasonal_strength']
-tab = pd.DataFrame(S).T[cols]
-tab.insert(0, 'license', ['CC BY 4.0','CC BY 4.0'])
-tab.insert(1, 'mục tiêu', ['cnt','pm2.5'])
-tab.insert(2, 'ngoại sinh', ['thời tiết, lịch','khí tượng, hướng gió'])
-display(tab)
-for k in S: print(k, 'ACF:', S[k]['acf'], '| dừng:', S[k]['stationarity'])"""),
-(M, """## Gợi ý tiền xử lý (dựa trên kết quả ở trên)
+(C, """S = {k: json.load(open(ROOT/'reports'/f'summary_{k}.json')) for k in ['bike','tetouan']}
+rows = {
+    'bike': {
+        'license': 'CC BY 4.0', 'mục tiêu': 'cnt', 'ngoại sinh': 'thời tiết, lịch',
+        'freq': S['bike']['freq'], 'rows': S['bike']['rows'], 'n_series': S['bike']['n_series'],
+        'missing_steps': S['bike']['missing_steps'], 'n_na': S['bike']['n_na'],
+        'seasonal_strength': S['bike'].get('seasonal_strength'), 'target_mean': S['bike'].get('target_mean'),
+    },
+    'tetouan': {
+        'license': 'CC BY 4.0', 'mục tiêu': 'zone1, zone2, zone3', 'ngoại sinh': 'thời tiết, bức xạ',
+        'freq': S['tetouan']['freq'], 'rows': S['tetouan']['rows'], 'n_series': S['tetouan']['n_series'],
+        'missing_steps': S['tetouan']['missing_steps'], 'n_na': S['tetouan']['n_na'],
+        'seasonal_strength': S['tetouan'].get('seasonal_strength'), 'target_mean': S['tetouan'].get('target_mean'),
+    },
+}
+display(pd.DataFrame(rows).T)
+for k in S: print(k, 'ACF:', S[k].get('acf'), '| dừng:', S[k].get('stationarity'))"""),
+(M, """## Gợi ý tiền xử lý
 
-| Bộ | Gợi ý |
-|---|---|
-| **Bike** | Bỏ `casual`, `registered` (rò rỉ mục tiêu), `instant`; giữ một trong `temp`/`atemp`. Dựng lưới giờ đều, quyết định điền giờ thiếu (0 hoặc nội suy) và đánh dấu bằng cờ. Biến đổi log1p mục tiêu (lệch phải). Chia train/test theo thời gian; chú ý tăng trưởng giữa 2011→2012 (drift) — cân nhắc đặc trưng xu hướng hoặc chuẩn hoá theo cửa sổ. Đặc trưng: giờ, thứ, workingday, lag 24/168. |
-| **PM2.5** | Mục tiêu thiếu theo đoạn: nội suy đoạn ngắn, mask đoạn dài khi tính loss/metric; bỏ 24 giờ đầu toàn NA. log1p mục tiêu (lệch phải nặng). One-hot `cbwd`; `Iws/Is/Ir` là cộng dồn → cân nhắc sai phân. Đỉnh ô nhiễm là tín hiệu thật, không xoá outlier. |
-| **Chung** | Chia theo thời gian (không xáo trộn), fit scaler/imputer chỉ trên train, luôn báo cáo baseline naive và seasonal naive. |
+- **Bike:** bỏ `casual`, `registered` và `instant`; giữ một trong `temp`/`atemp`; dựng lưới giờ đều; log1p nếu cần; tạo lag 24/168; chia theo thời gian.
+- **Tetouan:** parse `DateTime`; chuẩn hoá tên ba target; scale từng target; tạo hour/day-of-week/month; quyết định giữ tần suất 10 phút hay resample theo giờ; dùng multi-output loss nếu dự báo ba zone đồng thời.
+- **Chung:** fit scaler/imputer trên train; không random split; báo cáo naive và seasonal-naive; ghi rõ forecast horizon và quy tắc resample.
 """),
 ])
-print("built")
