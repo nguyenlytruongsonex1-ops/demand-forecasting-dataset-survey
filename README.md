@@ -27,11 +27,6 @@ Báo cáo đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_dataset_d
 - Quán tính ngắn: ACF lag1 = 0,965 nhưng lag24 = 0,398, lag168 = 0,023; tháng 2 cao nhất (126), tháng 8 thấp nhất (80).
 - Hướng gió quan trọng: trung bình 126 khi `cbwd = cv`, 70 khi gió NW; Spearman với Iws = −0,36.
 
-**Lưu ý tiền xử lý**
-- Bike: bỏ `casual`, `registered`, `instant`; giữ một trong `temp`/`atemp` (r = 0,988); dựng lưới giờ đều và quyết định điền giờ thiếu; cân nhắc log1p mục tiêu.
-- PM2.5: nội suy đoạn thiếu ngắn, mask đoạn dài khi tính loss/metric; log1p mục tiêu (skew còn −0,30); one-hot `cbwd`; Iws/Is/Ir là cộng dồn nên cân nhắc sai phân; không xóa outlier.
-- Chung: chia train/test theo thời gian, fit scaler/imputer chỉ trên train, luôn báo baseline naive và seasonal naive.
-
 ## Cấu trúc repo
 ```
 README.md
@@ -46,17 +41,6 @@ eda/scripts/build_notebooks.py               Sinh lại notebook từ mã nguồ
 eda/reports/summary_*.json                   Số liệu tóm tắt do notebook 01–02 sinh ra
 eda/requirements.txt
 ```
-
-## Cách chạy
-```bash
-cd eda
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python scripts/download_data.py      # tải vào eda/data/raw/ (đã .gitignore)
-cd notebooks
-for f in eda_0*.ipynb; do jupyter nbconvert --to notebook --execute --inplace $f; done
-```
-Chạy 01–02 trước 03. Cả 3 notebook chạy trên CPU trong khoảng 1 phút. Các câu "Nhận xét" trong notebook được in ra từ số liệu tính được, không gõ tay.
 
 ## BibTeX
 ```bibtex
