@@ -1,0 +1,64 @@
+{
+ "dataset": "tetouan",
+ "rows": 52416,
+ "cols": 9,
+ "freq": "10 phút",
+ "n_series": 3,
+ "target": "zone1, zone2, zone3",
+ "start": "2017-01-01 00:00:00",
+ "end": "2017-12-30 23:50:00",
+ "missing_steps": 0,
+ "dup_ts": 0,
+ "n_na": 0,
+ "target_summary": {
+  "zone1": {
+   "mean": 32344.971,
+   "50%": 32265.92,
+   "std": 7130.563,
+   "min": 13895.696,
+   "max": 52204.395,
+   "skew": 0.229,
+   "kurtosis": -0.754
+  },
+  "zone2": {
+   "mean": 21042.509,
+   "50%": 20823.168,
+   "std": 5201.466,
+   "min": 8560.081,
+   "max": 37408.861,
+   "skew": 0.329,
+   "kurtosis": -0.437
+  },
+  "zone3": {
+   "mean": 17835.406,
+   "50%": 16415.117,
+   "std": 6622.165,
+   "min": 5935.174,
+   "max": 47598.326,
+   "skew": 1.024,
+   "kurtosis": 1.086
+  }
+ },
+ "target_mean": 32344.971,
+ "target_skew": 0.229,
+ "target_kurt": -0.754,
+ "target_cv": 0.22,
+ "target_outlier_pct": 0.0,
+ "trend_strength": 0.931,
+ "seasonal_strength": 0.987,
+ "acf": {
+  "lag1": 0.922,
+  "lag3": 0.534,
+  "lag6": 0.005,
+  "lag24": 0.963,
+  "lag168": 0.953
+ },
+ "stationarity": {
+  "Zone 1 theo giờ": "trái chiều: ADF nói dừng, KPSS nói không dừng (thường do xu hướng/mùa vụ → kiểm lại sau sai phân)"
+ },
+ "top_exog": {
+  "Temperature": 0.433,
+  "Humidity": -0.3,
+  "general diffuse flows": 0.261
+ }
+}

@@ -1,92 +1,130 @@
-# Báo cáo EDA: UCI Bike Sharing và Beijing PM2.5
+# Báo cáo EDA: UCI Bike Sharing và Power Consumption of Tetouan City
 
 **Nguyễn Lý Trường Sơn, 14/10/2026**
 
-## 1. Phạm vi và lý do chọn
+## 1. Phạm vi và mục tiêu
 
-Theo yêu cầu của thầy hướng dẫn, đề tài dùng **UCI Bike Sharing** và thêm một bộ chuỗi thời gian nhẹ, công khai, có trích dẫn. Bộ được chọn là **Beijing PM2.5**. Hai bộ thay cho M5 và FreshRetailNet-50K, vốn được đánh giá là quá nặng để nghiên cứu mô hình trên máy yếu.
+Báo cáo tập trung vào hai dataset gần với bài toán dự báo nhu cầu hoặc phụ tải: **UCI Bike Sharing** và **Power Consumption of Tetouan City**. Mục tiêu của EDA là kiểm tra cấu trúc chuỗi thời gian, chất lượng dữ liệu, phân phối target, mùa vụ, tự tương quan, quan hệ với biến ngoại sinh và các rủi ro cần xử lý trước khi huấn luyện mô hình deep learning.
 
-- Cả hai đều là chuỗi theo giờ, có biến ngoại sinh, license CC BY 4.0 trên UCI, có paper gốc kèm DOI.
-- Kích thước nhỏ (17.379 và 43.824 dòng); toàn bộ EDA chạy trên CPU trong khoảng 1 phút.
-- Hai bộ bổ sung cho nhau: Bike có mùa vụ ngày/tuần mạnh và xu hướng tăng (drift); PM2.5 có thiếu dữ liệu theo đoạn, đuôi phải nặng và phụ thuộc mạnh vào thời tiết.
+Các con số trong báo cáo được sinh từ hai notebook đã chạy trong `eda/notebooks/`. Dữ liệu thô không được commit vào repository; script tải trực tiếp từ nguồn UCI.
 
-Mọi con số dưới đây lấy từ output của các notebook trong `eda/notebooks/`.
+## 2. Thông tin dataset và nguồn trích dẫn
 
-## 2. UCI Bike Sharing (UCI 275)
+### 2.1. UCI Bike Sharing (UCI 275)
 
-**Mô tả.** Số lượt thuê xe đạp mỗi giờ của hệ thống Capital Bikeshare (Washington DC), 2011-01-01 00:00 → 2012-12-31 23:00, file `hour.csv` có 17.379 dòng, 17 cột. Mục tiêu: `cnt`. Biến ngoại sinh: thời tiết (`temp`, `atemp`, `hum`, `windspeed`, `weathersit`, đã chuẩn hóa về [0,1] bởi nhà cung cấp) và lịch (`hr`, `weekday`, `workingday`, `holiday`, `season`, `mnth`, `yr`). Paper gốc: Fanaee-T & Gama (2014), Progress in Artificial Intelligence, DOI 10.1007/s13748-013-0040-3.
+UCI Bike Sharing ghi nhận số lượt thuê xe của hệ thống Capital Bikeshare tại Washington DC. File `hour.csv` có 17.379 dòng theo giờ, từ `2011-01-01 00:00:00` đến `2012-12-31 23:00:00`, với target `cnt`. Các biến đầu vào gồm thời tiết (`temp`, `atemp`, `hum`, `windspeed`, `weathersit`) và biến lịch (`hr`, `weekday`, `workingday`, `holiday`, `season`, `mnth`, `yr`). UCI cung cấp dataset dưới license CC BY 4.0 và DOI `10.24432/C5W894` [1].
 
-**Kết quả EDA chính.**
+Bài báo nền của Fanaee-T và Gama sử dụng log của hệ thống bike sharing làm dữ liệu thực nghiệm, đồng thời thảo luận về phát hiện sự kiện, mô hình dự báo và các đặc điểm chuỗi thời gian [2].
 
-| Hạng mục | Kết quả |
-|---|---|
-| Giờ thiếu | 165/17.544 giờ (0,94%), rải trên 76 ngày; ngày thiếu nhiều nhất 2012-10-29 (23 giờ) |
-| NA, trùng | 0 NA trong ô, 0 mốc trùng |
-| Rò rỉ | `casual + registered = cnt` ở 100% dòng |
-| Phân phối `cnt` | TB 189,5; trung vị 142; max 977; skew 1,28; kurtosis 1,42; log1p → skew −0,82 |
-| Outlier (IQR 1,5) | 505 giờ (2,9%) vượt 642, chủ yếu giờ cao điểm thật |
-| Xu hướng | TB/giờ 143,8 (2011) → 234,7 (2012), tăng 63,2% |
-| Mùa vụ | Ngày làm việc: đỉnh 8h (477), 17h (525); ngày nghỉ: đỉnh 13h (373). STL period 24: độ mạnh mùa vụ 0,881 |
-| ACF | lag1 0,843; lag24 0,819; lag168 0,876 |
-| Kiểm định dừng | Chuỗi ngày không dừng (ADF p = 0,34); sai phân 1 lần thì dừng |
-| Tương quan (Spearman) | hr 0,51; temp 0,42; atemp 0,42; hum −0,36; temp–atemp r = 0,988 |
+### 2.2. Power Consumption of Tetouan City (UCI 849)
 
-## 3. Beijing PM2.5 (UCI 381)
+Tetouan City ghi nhận phụ tải của ba vùng phân phối điện tại Tetouan, Morocco, cùng nhiệt độ, độ ẩm, tốc độ gió, general diffuse flows và diffuse flows. File thực tế có 52.416 dòng theo tần suất 10 phút, từ `2017-01-01 00:00:00` đến `2017-12-30 23:50:00`. Ba target là phụ tải của Zone 1, Zone 2 và Zone 3. UCI cung cấp dataset dưới license CC BY 4.0 và DOI `10.24432/C5B034` [3].
 
-**Mô tả.** Nồng độ PM2.5 mỗi giờ tại Đại sứ quán Mỹ ở Bắc Kinh, 2010-01-01 00:00 → 2014-12-31 23:00, 43.824 dòng, 13 cột. Mục tiêu: `pm2.5`. Biến ngoại sinh: điểm sương `DEWP`, nhiệt độ `TEMP`, áp suất `PRES`, hướng gió `cbwd`, tốc độ gió cộng dồn `Iws`, số giờ tuyết/mưa cộng dồn `Is`/`Ir`. Paper gốc: Liang et al. (2015), Proceedings of the Royal Society A 471:20150257, DOI 10.1098/rspa.2015.0257.
+Bài báo của Salam và El Hibaoui mô tả dữ liệu SCADA của ba mạng phân phối, được ghi mỗi 10 phút trong năm 2017, và so sánh các mô hình dự báo phụ tải. Bài báo xuất bản tại IEEE IRSEC, DOI `10.1109/IRSEC.2018.8703007` [4].
 
-**Kết quả EDA chính.**
+## 3. EDA UCI Bike Sharing
 
-| Hạng mục | Kết quả |
-|---|---|
-| Lưới thời gian | Đầy đủ: 0 giờ thiếu, 0 mốc trùng |
-| Thiếu ở mục tiêu | 2.067 giá trị (4,72%), 214 đoạn, dài nhất 155 giờ, trung vị 1 giờ; 24 giờ đầu toàn NA |
-| Thiếu theo năm | 2010: 669; 2011: 728; 2012: 489; 2013: 82; 2014: 99 |
-| Phân phối `pm2.5` | TB 98,6; trung vị 72; max 994; skew 1,80; kurtosis 4,77; log1p → skew −0,30 |
-| Outlier (IQR 1,5) | 1.773 giờ (4,25%) vượt 299, là các đợt ô nhiễm thật |
-| Biến thưa | Is > 0 ở 0,84% giờ, Ir > 0 ở 4,13% giờ; Iws skew 4,30 |
-| Xu hướng, mùa vụ | TB năm 104,0 / 99,1 / 90,5 / 101,7 / 97,7, không có xu hướng đơn điệu; tháng 2 cao nhất (126), tháng 8 thấp nhất (80); theo giờ cao nhất 1h (114), thấp nhất 15h (86); STL period 24: mùa vụ 0,411; không thấy mùa vụ tuần |
-| ACF | lag1 0,965; lag24 0,398; lag168 0,023 |
-| Kiểm định dừng | ADF và KPSS cùng kết luận dừng (chuỗi giờ và chuỗi TB ngày) |
-| Tương quan (Spearman) | Iws −0,36; cbwd_NW −0,33; DEWP 0,30; cbwd_SE 0,21. TB pm2.5 khi `cbwd = cv`: 126, khi gió NW: 70 |
+### 3.1. Tính đầy đủ và tính liên tục của thời gian
 
-## 4. So sánh nhanh
+File có 17.379 dòng. Khi tạo lưới đều từ timestamp đầu đến cuối, có 17.544 mốc giờ kỳ vọng và thiếu 165 mốc, tương đương 0,94%. Các mốc thiếu rải trên 76 ngày; không có timestamp trùng và không có NA trong các ô dữ liệu.
 
-| | Bike Sharing | Beijing PM2.5 |
-|---|---|---|
-| Dòng | 17.379 | 43.824 |
-| Thiếu | 165 giờ thiếu dòng | 2.067 NA ở mục tiêu |
-| Skew / kurtosis mục tiêu | 1,28 / 1,42 | 1,80 / 4,77 |
-| Outlier mục tiêu | 2,9% | 4,25% |
-| ACF lag1 / lag24 | 0,843 / 0,819 | 0,965 / 0,398 |
-| Đặc điểm nổi bật | Mùa vụ ngày/tuần mạnh, drift +63,2% giữa 2 năm | Thiếu theo đoạn, đuôi nặng, phụ thuộc thời tiết |
+Điều này cần được hiểu là **thiếu dòng trên lưới thời gian**, không phải missing value trong cột. Trước khi tạo cửa sổ huấn luyện cần quyết định các mốc này là số lượt thuê bằng 0, giá trị cần nội suy, hay giá trị bị che bằng một cờ chất lượng dữ liệu.
 
-## 5. Gợi ý tiền xử lý
+### 3.2. Target, phân phối và rò rỉ dữ liệu
 
-**Bike Sharing**
-- Bỏ `casual`, `registered` (rò rỉ mục tiêu) và `instant` (số thứ tự); giữ một trong `temp`/`atemp`.
-- Dựng lưới giờ đều; quyết định điền 0 hay nội suy cho 165 giờ thiếu, kèm cờ đánh dấu.
-- Cân nhắc log1p mục tiêu; giữ outlier giờ cao điểm.
-- Chia theo thời gian; xử lý drift giữa 2011 và 2012 (đặc trưng xu hướng hoặc chuẩn hóa theo cửa sổ); đặc trưng giờ, thứ, workingday, lag 24/168.
+`cnt` có trung bình 189,5, trung vị 142, giá trị lớn nhất 977, skewness 1,28 và kurtosis 1,42. Target lệch phải do các giờ cao điểm có nhu cầu lớn. Khoảng 2,9% quan sát vượt ngưỡng IQR 1,5 lần; các điểm này phần lớn là giờ cao điểm thật, không nên xóa tự động.
 
-**Beijing PM2.5**
-- Bỏ 24 giờ đầu; nội suy đoạn thiếu ngắn, mask đoạn thiếu dài khi tính loss và metric.
-- log1p mục tiêu; không xóa đỉnh ô nhiễm; cân nhắc loss bền vững.
-- One-hot `cbwd`; Iws/Is/Ir là cộng dồn nên cân nhắc sai phân.
-- Thời tiết là biến quan sát cùng thời điểm: khi dự báo nhiều bước cần dùng giá trị dự báo hoặc lag.
+Có rò rỉ target rõ ràng: `casual + registered = cnt` ở 100% dòng. Hai cột `casual` và `registered` là thành phần của target nên phải loại khỏi input. `instant` cũng nên loại vì chỉ là chỉ số dòng.
 
-**Chung:** chia train/test theo thời gian, fit scaler/imputer chỉ trên train, luôn báo baseline naive và seasonal naive.
+### 3.3. Xu hướng, mùa vụ và tính dừng
 
-## 6. Thay đổi so với bản khảo sát trước
+Trung bình theo giờ tăng từ 143,8 trong năm 2011 lên 234,7 trong năm 2012, tương đương tăng 63,2%. Đây là drift theo thời gian, vì vậy split ngẫu nhiên có thể làm kết quả quá lạc quan.
 
-Bản trước (13/10/2026) khảo sát 6 bộ UCI cho TabM (Adult, Bank Marketing, Breast Cancer Wisconsin, Wine Quality, Bike Sharing, Heart Disease) và FreshRetailNet-50K; M5 đã bị loại trước đó. Trong bản này đã gỡ:
-- Toàn bộ nội dung về 5 bộ phân loại/hồi quy, FreshRetailNet-50K và M5 khỏi README và báo cáo.
-- `figures/khung_phuong_phap.png` (sơ đồ ghi "Bike · M5 · FreshRetailNet").
-- Trước đó, EDA của ETTm1 và Tourism Monthly cũng đã được gỡ khỏi `eda/`.
+Chuỗi có mùa vụ ngày và tuần rõ. ACF tại lag 1 là 0,843, lag 24 là 0,819 và lag 168 là 0,876. Vào ngày làm việc, các đỉnh chính nằm ở khoảng 8h và 17h; vào ngày nghỉ, nhu cầu tập trung hơn vào giữa ngày. Độ mạnh mùa vụ ngày theo STL, với period 24, là 0,881. Chuỗi tổng hợp theo ngày không dừng; sai phân bậc một giúp chuỗi dừng hơn.
+
+### 3.4. Quan hệ với biến ngoại sinh
+
+Theo tương quan Spearman, `hr` liên quan mạnh nhất với `cnt` ở mức 0,511. `temp` và `atemp` cùng ở mức 0,423; hai biến này gần trùng nhau với tương quan Pearson khoảng 0,988, nên có thể giữ một biến. `hum` có quan hệ âm với nhu cầu. Khi dự báo nhiều bước, thời tiết tại tương lai chỉ được dùng nếu có dự báo thời tiết hoặc phải thay bằng giá trị trễ.
+
+## 4. EDA Power Consumption of Tetouan City
+
+### 4.1. Tính đầy đủ và tần suất
+
+File có 52.416 dòng và ba target. Lưới 10 phút từ timestamp đầu đến cuối không có mốc thiếu, timestamp trùng hoặc NA. Đây là điểm thuận lợi cho việc tạo cửa sổ liên tục và đánh giá multi-step forecasting.
+
+Dataset có tần suất khác Bike Sharing. Nếu muốn so sánh hai bộ trong cùng một thí nghiệm, cần resample Tetouan về giờ. Khi đó phải nêu rõ target sau resample là phụ tải trung bình trong giờ hay tổng năng lượng trong giờ; không nên dùng hai cách diễn giải lẫn nhau.
+
+### 4.2. Phân phối của ba target
+
+Thống kê trên đơn vị gốc của dữ liệu:
+
+| Target | Trung bình | Độ lệch chuẩn | Min | Max | Skewness | Kurtosis |
+|---|---:|---:|---:|---:|---:|---:|
+| Zone 1 | 32.345,0 | 7.130,6 | 13.895,7 | 52.204,4 | 0,229 | -0,754 |
+| Zone 2 | 21.042,5 | 5.201,5 | 8.560,1 | 37.408,9 | 0,329 | -0,437 |
+| Zone 3 | 17.835,4 | 6.622,2 | 5.935,2 | 47.598,3 | 1,024 | 1,086 |
+
+Zone 1 và Zone 2 tương đối cân bằng hơn; Zone 3 lệch phải rõ hơn. Theo quy tắc IQR 1,5, tỷ lệ outlier khoảng 0% ở Zone 1, 0,013% ở Zone 2 và 2,272% ở Zone 3. Các điểm cực trị cần được kiểm tra theo thời gian trước khi loại bỏ vì có thể đại diện cho đỉnh phụ tải.
+
+### 4.3. Tương quan giữa vùng và mùa vụ
+
+Ba target có tương quan dương: Pearson giữa Zone 1 và Zone 2 là 0,835; giữa Zone 1 và Zone 3 là 0,751; giữa Zone 2 và Zone 3 là 0,571. Điều này ủng hộ thiết kế multi-output, trong đó mô hình dự báo đồng thời ba vùng có thể tận dụng thông tin chung.
+
+Sau khi lấy trung bình theo giờ, Zone 1 có ACF lag 1 = 0,922, lag 24 = 0,963 và lag 168 = 0,953. Độ mạnh mùa vụ ngày theo STL là 0,987 và độ mạnh xu hướng là 0,931. Nhu cầu Zone 1 trung bình cao nhất khoảng 20h và thấp nhất khoảng 6h; Zone 2 cũng đạt đỉnh khoảng 20h, trong khi Zone 3 đạt đỉnh khoảng 20h và thấp nhất khoảng 7h.
+
+ACF cao ở lag 24 và 168 cho thấy các cửa sổ 24 giờ và 7 ngày nên được thử nghiệm. Tuy nhiên, vì dữ liệu gốc có bước 10 phút, nếu giữ tần suất gốc thì một ngày tương ứng 144 bước và một tuần tương ứng 1.008 bước.
+
+### 4.4. Quan hệ với biến ngoại sinh
+
+Đối với Zone 1, tương quan Spearman lớn nhất trong nhóm ngoại sinh là Temperature = 0,433, Humidity = -0,300 và general diffuse flows = 0,261. Diffuse flows và Wind Speed có quan hệ yếu hơn. Khi dự báo nhiều bước, cần xác định các biến ngoại sinh nào thực sự có sẵn ở thời điểm dự báo; nếu không, sử dụng lag hoặc dự báo riêng cho ngoại sinh.
+
+## 5. So sánh và hàm ý cho mô hình DL
+
+Hai dataset đều có seasonality và tự tương quan đủ rõ để làm bài toán forecasting, nhưng chúng đại diện cho hai dạng target khác nhau:
+
+- **Bike Sharing:** một target đếm theo giờ, có drift mạnh giữa hai năm, có rò rỉ từ các biến thành phần và thiếu một số mốc giờ.
+- **Tetouan:** ba target phụ tải liên tục, dữ liệu sạch theo 10 phút, có tương quan giữa các vùng, mùa vụ ngày/tuần mạnh và cần xử lý khác biệt quy mô giữa các target.
+
+Thiết kế baseline nên gồm naive, seasonal-naive, linear regression hoặc gradient boosting. Sau đó mới thử MLP trên lag features, GRU/LSTM nhỏ hoặc TCN. Transformer chỉ nên thử sau khi đã chứng minh rằng baseline và mô hình DL nhỏ chưa đủ, vì kích thước dữ liệu vẫn nhỏ so với các benchmark lớn.
+
+Đánh giá phải dùng chronological split, fit scaler chỉ trên train, cố định seed và báo cáo MAE, RMSE cùng sMAPE. Nên báo cáo riêng theo forecast horizon, ngày làm việc/ngày nghỉ và từng Zone. Với Tetouan, cần báo cáo cả kết quả multi-output và kết quả dự báo từng Zone độc lập.
+
+## 6. Pipeline tiền xử lý đề xuất
+
+### Bike Sharing
+
+1. Parse `dteday` và `hr` thành timestamp.
+2. Dựng lưới giờ đều và tạo cờ cho timestamp thiếu.
+3. Loại `instant`, `casual`, `registered`; giữ một trong `temp` và `atemp`.
+4. Tạo đặc trưng giờ, thứ, tháng, ngày làm việc và lag 24/168.
+5. Cân nhắc `log1p(cnt)` nhưng không xóa các đỉnh giờ cao điểm.
+6. Chia train/validation/test theo thời gian và kiểm tra drift giữa 2011 và 2012.
+
+### Tetouan
+
+1. Parse `DateTime` và kiểm tra bước 10 phút.
+2. Đổi tên ba target về tên ngắn, nhất quán; lưu lại đơn vị gốc.
+3. Tạo đặc trưng hour, day-of-week, month và cyclical encoding.
+4. Scale từng Zone bằng thống kê của train; cân nhắc loss có trọng số nếu huấn luyện đồng thời.
+5. Thử cả tần suất 10 phút và dữ liệu resample theo giờ với quy tắc được ghi rõ.
+6. Dùng horizon 6 bước cho 1 giờ hoặc 144 bước cho 24 giờ nếu giữ tần suất 10 phút.
+
+### Chung
+
+- Không random split toàn bộ chuỗi.
+- Không fit scaler, imputer hoặc feature transformation trên test.
+- Luôn có baseline seasonal-naive.
+- Báo cáo rõ lookback, horizon, tần suất, cách resample và cách xử lý outlier.
+
+## 7. Kết luận
+
+Hai dataset thống nhất với hướng **dự báo nhu cầu/phụ tải**. UCI Bike Sharing phù hợp để nghiên cứu demand theo giờ với một target và mùa vụ ngày/tuần rõ. Tetouan phù hợp để mở rộng sang load forecasting đa biến, multi-output và tần suất cao hơn.
+
+Cả hai đều nhẹ, có nguồn UCI và DOI, có thể chạy EDA và mô hình nền trên máy yếu. Chúng phù hợp cho một nghiên cứu có phạm vi 4–6 tuần, miễn là mô hình được giữ nhỏ, có baseline rõ ràng và quy trình chia dữ liệu theo thời gian được thực hiện đúng.
 
 ## Tài liệu tham khảo
 
-1. Fanaee-T, H., & Gama, J. (2014). Event labeling combining ensemble detectors and background knowledge. *Progress in Artificial Intelligence*, 2(2–3), 113–127. https://doi.org/10.1007/s13748-013-0040-3
-2. Fanaee-T, H. (2013). Bike Sharing [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5W894
-3. Liang, X., Zou, T., Guo, B., Li, S., Zhang, H., Zhang, S., Huang, H., & Chen, S. X. (2015). Assessing Beijing's PM2.5 pollution: severity, weather impact, APEC and winter heating. *Proceedings of the Royal Society A*, 471, 20150257. https://doi.org/10.1098/rspa.2015.0257
-4. Chen, S. (2015). Beijing PM2.5 [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5JS49
+1. Fanaee-T, H., & Gama, J. (2014). *Event labeling combining ensemble detectors and background knowledge*. Progress in Artificial Intelligence, 2(2–3), 113–127. https://doi.org/10.1007/s13748-013-0040-3
+2. Fanaee-T, H. (2013). *Bike Sharing* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5W894
+3. Salam, A., & El Hibaoui, A. (2018). *Comparison of Machine Learning Algorithms for the Power Consumption Prediction: Case Study of Tetouan city*. IEEE IRSEC. https://doi.org/10.1109/IRSEC.2018.8703007
+4. Salam, A., & El Hibaoui, A. (2023). *Power Consumption of Tetouan City* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5B034

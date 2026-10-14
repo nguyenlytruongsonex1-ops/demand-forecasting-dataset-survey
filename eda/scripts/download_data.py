@@ -1,12 +1,14 @@
 """Tải 2 dataset từ nguồn gốc vào data/raw/ (không phân phối lại dữ liệu).
 Chạy: python scripts/download_data.py
 """
-import io, zipfile, pathlib, requests
+import io, pathlib, zipfile
+
+import requests
 
 RAW = pathlib.Path(__file__).resolve().parents[1] / "data" / "raw"
 SOURCES = {
-    # Beijing PM2.5 - UCI 381, CC BY 4.0
-    "PRSA_data_2010.1.1-2014.12.31.csv": ("https://archive.ics.uci.edu/static/public/381/beijing+pm2+5+data.zip", "zip"),
+    # Power Consumption of Tetouan City - UCI 849, CC BY 4.0
+    "Tetuan City power consumption.csv": ("https://archive.ics.uci.edu/static/public/849/power+consumption+of+tetouan+city.zip", "zip"),
     # UCI Bike Sharing - UCI 275, CC BY 4.0
     "hour.csv": ("https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip", "zip"),
 }
