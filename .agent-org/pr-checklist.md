@@ -20,7 +20,7 @@ Copy this checklist into the PR description and check every applicable item befo
 
 ## Validation evidence
 
-- [ ] Exact commands and results are recorded for `git status --short --branch` and `git diff --check`.
+- [ ] Exact commands and results are recorded for `git status --short --branch`, `git fetch origin main` with verification of the intended `origin/main` base, and the base-aware PR-diff check `git diff --check origin/main...HEAD`.
 - [ ] Notebook JSON structure/code-cell compilation and both summary JSON parses were run or an explicit reason is recorded.
 - [ ] Dependency installation (`python3 -m pip install -r eda/requirements.txt`) is recorded when needed, including network/environment result; no configured pytest, lint, type-check, or CI is claimed.
 - [ ] If relevant, isolated notebook execution evidence records raw-data download/network status, generator use, output location, and expected side effects.
@@ -36,6 +36,6 @@ Copy this checklist into the PR description and check every applicable item befo
 
 ## Final gate
 
-- [ ] Final `git diff --check` passed.
+- [ ] After fetching and verifying the intended `origin/main` base, final base-aware PR-diff check `git diff --check origin/main...HEAD` passed.
 - [ ] Final `git status --short --branch` and diff inspection show only intended files.
 - [ ] Merge is performed only through the approved PR, never directly on `main`.

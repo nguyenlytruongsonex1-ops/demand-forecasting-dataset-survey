@@ -12,7 +12,7 @@ The analysis must anchor to the intended checked-out base. The current project s
 
 ## 2. Implement on a branch and open a PR
 
-The implementation agent starts from the approved base, creates/uses a feature branch, makes the smallest change, and opens a PR. It never edits or merges `main` directly. The PR links the analysis evidence, states files and assumptions, identifies expected generated-artifact changes, and records exact validation commands. For this playbook addition, only the seven requested `.agent-org/*.md` files are in scope; do not change source, data, notebooks, reports, or generated outputs. See [roles/implementation.md](roles/implementation.md).
+The implementation agent starts from the approved base, creates/uses a feature branch, makes the smallest change, and opens a PR. It never edits or merges `main` directly. The PR links the analysis evidence, states files and assumptions, identifies expected generated-artifact changes, and records exact validation commands. For this playbook addition, only these exactly seven Markdown files are in scope: `.agent-org/README.md`, `.agent-org/pr-checklist.md`, `.agent-org/workflow.md`, `.agent-org/roles/code-review.md`, `.agent-org/roles/codebase-analysis.md`, `.agent-org/roles/implementation.md`, and `.agent-org/roles/testing.md`; do not change source, data, notebooks, reports, or generated outputs. See [roles/implementation.md](roles/implementation.md).
 
 Preserve UCI citations, raw-data ignore policy, Vietnamese project terminology, and the existing two-dataset naming. If a future change touches analysis logic, explicitly inspect target leakage (`casual`/`registered` for Bike), temporal leakage, time-series split discipline, train-only preprocessing, missing values, reproducibility, and artifact drift.
 
@@ -22,11 +22,13 @@ A testing agent, who is not relying only on the implementation author's claims, 
 
 ### Baseline checks
 
-These checks are repository-grounded and safe when run from the checkout; the first two do not need network access:
+These checks are repository-grounded and safe when run from the checkout. Before the PR-diff check, fetch and verify that `origin/main` is the intended PR base; the fetch needs network access, while the status and subsequent checks are local:
 
 ```bash
 git status --short --branch
-git diff --check
+git fetch origin main
+git rev-parse --verify origin/main
+git diff --check origin/main...HEAD
 python3 - <<'PY'
 import json, pathlib
 root = pathlib.Path('.')
@@ -82,4 +84,4 @@ After review fixes, the independent testing agent reruns every impacted check (a
 
 ## 7. Merge gate
 
-Merge only through the PR after all applicable checklist items are complete: analysis evidence linked; intended branch confirmed; no raw/generated unwanted artifacts; exact tests recorded; independent tester approval; independent reviewer approval; every finding resolved; impacted tests rerun; reviewer recheck complete; and final `git diff --check` plus status/diff inspection pass. Branch protection or CI may later enforce these rules, but neither currently exists and must not be implied.
+Merge only through the PR after all applicable checklist items are complete: analysis evidence linked; intended branch confirmed; no raw/generated unwanted artifacts; exact tests recorded; independent tester approval; independent reviewer approval; every finding resolved; impacted tests rerun; reviewer recheck complete; and the final base-aware PR-diff check `git diff --check origin/main...HEAD` (after fetching and verifying `origin/main`) plus status/diff inspection pass. Branch protection or CI may later enforce these rules, but neither currently exists and must not be implied.

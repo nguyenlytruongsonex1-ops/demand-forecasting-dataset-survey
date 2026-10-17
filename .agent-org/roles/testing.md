@@ -18,11 +18,13 @@ Independently validate the PR from a clean checkout or worktree, record exact co
 
 ## Baseline commands
 
-Run these from the repository root in the independent checkout. The first two are local and non-network checks. The Python block parses notebook JSON, compiles every code cell, and parses both summary JSON files:
+Run these from the repository root in the independent checkout. Before the PR-diff check, fetch and verify that `origin/main` is the intended PR base; fetching needs network access and the remaining checks are local. The Python block parses notebook JSON, compiles every code cell, and parses both summary JSON files:
 
 ```bash
 git status --short --branch
-git diff --check
+git fetch origin main
+git rev-parse --verify origin/main
+git diff --check origin/main...HEAD
 python3 - <<'PY'
 import json, pathlib
 root = pathlib.Path('.')
@@ -65,7 +67,7 @@ The download and dependency availability require network access; notebook execut
 ## Acceptance criteria
 
 - [ ] Testing uses a fresh independent checkout/context and a commit identifiable in the PR.
-- [ ] `git diff --check`, notebook JSON/code-cell compilation, and summary JSON parsing are run and recorded, or a reason is documented.
+- [ ] After fetching and verifying the intended `origin/main` base, `git diff --check origin/main...HEAD`, notebook JSON/code-cell compilation, and summary JSON parsing are run and recorded, or a reason is documented.
 - [ ] Dependency installation is recorded as network/environment-changing when needed; no nonexistent framework is claimed.
 - [ ] Relevant notebook execution uses isolation and the correct working directory; destructive generator behavior is acknowledged.
 - [ ] For relevant logic, evidence addresses leakage, time-series split correctness, train-only preprocessing/missing values, reproducibility, and artifact drift.
