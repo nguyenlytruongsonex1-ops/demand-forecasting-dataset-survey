@@ -47,6 +47,17 @@ Kết quả giữa ba seed khá ổn định: độ lệch chuẩn MAE của Pat
 
 Về mặt cơ chế, `LayerNorm(patch_len)` chuẩn hóa từng patch theo trục thời gian trước khi Linear, làm mất scale và mức tuyệt đối của mỗi patch. Với chuỗi `cnt`, mức tuyệt đối mang thông tin quan trọng về drift và cường độ nhu cầu. `Linear → LayerNorm` giữ phép chiếu nhìn thấy scale gốc rồi chỉ chuẩn hóa embedding `d_model` trước Transformer, nên là thứ tự phù hợp hơn cho cấu hình này.
 
+## Ablation LayerNorm trước head
+
+Một biến thể khác đặt LayerNorm sau encoder và trước lớp dự báo: `Encoder → flatten → LayerNorm → Linear head`. Kết quả trên cùng ba seed:
+
+| Mô hình | MAE ↓ | RMSE ↓ | sMAPE (%) ↓ | MASE ↓ |
+|---|---:|---:|---:|---:|
+| PatchTST thuần | **55,79 ± 0,01** | **85,35 ± 0,14** | 44,80 ± 0,99 | **0,987 ± 0,000** |
+| PatchTST + LayerNorm trước head | 60,66 ± 1,23 | 91,19 ± 1,57 | **44,22 ± 0,68** | 1,073 ± 0,022 |
+
+LayerNorm trước head không cải thiện MAE, RMSE hoặc MASE. Nó chỉ giảm sMAPE trung bình 0,57 điểm phần trăm, nhưng paired t-test trên ba seed cho p = 0,556, nên không có tín hiệu đủ rõ ở metric này. Với MAE, RMSE và MASE, p lần lượt là 0,0207, 0,0197 và 0,0207; do đó trong cấu hình hiện tại, PatchTST thuần vẫn là lựa chọn tốt hơn.
+
 ## Tái chạy
 
 Từ thư mục gốc repo:
@@ -61,6 +72,7 @@ Script ghi kết quả vào:
 - `experiments/results/bike_patchtst_results.csv`: bảng kết quả theo model và seed.
 - `experiments/results/bike_patchtst_results.json`: cấu hình, split, preprocessing, lịch sử train và kết quả đầy đủ.
 - `experiments/results/run.log`: log lần chạy đã thực hiện.
+- `experiments/results/bike_patchtst_headln_3seed_15ep.csv`: kết quả ablation LayerNorm trước head.
 
 ## Hạn chế cần lưu ý
 

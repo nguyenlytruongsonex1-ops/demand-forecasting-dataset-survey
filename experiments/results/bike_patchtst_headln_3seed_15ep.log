@@ -1,0 +1,13 @@
+data points=17544, observed=17379, missing=165
+splits: train=12089, val=1732, test=3486
+device=cpu, config={'context': 168, 'horizon': 24, 'patch_len': 24, 'stride': 24, 'd_model': 32, 'n_heads': 4, 'n_layers': 2, 'd_ff': 64, 'dropout': 0.1, 'batch_size': 128, 'epochs': 15, 'patience': 4, 'lr': 0.001, 'weight_decay': 0.0001}
+{'variant': 'naive_last', 'seed': None, 'best_epoch': None, 'best_val_mse_scaled': None, 'seconds': 0.0, 'params': 0, 'mae': 225.39599609375, 'rmse': 296.37310791015625, 'smape_pct': 102.1590347290039, 'mase': 3.9864678382873535, 'n_evaluated': 82704}
+{'variant': 'seasonal_naive_24', 'seed': None, 'best_epoch': None, 'best_val_mse_scaled': None, 'seconds': 0.0, 'params': 0, 'mae': 79.28473663330078, 'rmse': 133.1828155517578, 'smape_pct': 43.529266357421875, 'mase': 1.4022700786590576, 'n_evaluated': 82704}
+{'variant': 'patchtst', 'seed': 13, 'best_epoch': 15, 'best_val_mse_scaled': 0.2704694020961012, 'seconds': 32.68230724334717, 'params': 23512, 'mae': 55.8035774230957, 'rmse': 85.19277954101562, 'smape_pct': 45.88391876220703, 'mase': 0.9869703650474548, 'n_evaluated': 82704}
+{'variant': 'patchtst', 'seed': 42, 'best_epoch': 15, 'best_val_mse_scaled': 0.27144366928509306, 'seconds': 30.656121253967285, 'params': 23512, 'mae': 55.78358459472656, 'rmse': 85.46026611328125, 'smape_pct': 44.54098129272461, 'mase': 0.9866167902946472, 'n_evaluated': 82704}
+{'variant': 'patchtst', 'seed': 2026, 'best_epoch': 14, 'best_val_mse_scaled': 0.2762902613197054, 'seconds': 30.135636568069458, 'params': 23512, 'mae': 55.77442932128906, 'rmse': 85.41116333007812, 'smape_pct': 43.960182189941406, 'mase': 0.9864548444747925, 'n_evaluated': 82704}
+{'variant': 'patchtst_ln_head', 'seed': 13, 'best_epoch': 12, 'best_val_mse_scaled': 0.285770520567894, 'seconds': 31.16435480117798, 'params': 23960, 'mae': 59.557228088378906, 'rmse': 89.66191101074219, 'smape_pct': 43.69249725341797, 'mase': 1.0533593893051147, 'n_evaluated': 82704}
+{'variant': 'patchtst_ln_head', 'seed': 42, 'best_epoch': 9, 'best_val_mse_scaled': 0.30681512504816055, 'seconds': 27.020582675933838, 'params': 23960, 'mae': 61.98133087158203, 'rmse': 92.80313873291016, 'smape_pct': 44.98637390136719, 'mase': 1.0962332487106323, 'n_evaluated': 82704}
+{'variant': 'patchtst_ln_head', 'seed': 2026, 'best_epoch': 14, 'best_val_mse_scaled': 0.29043189755507876, 'seconds': 30.463004112243652, 'params': 23960, 'mae': 60.448486328125, 'rmse': 91.11370849609375, 'smape_pct': 43.9858512878418, 'mase': 1.069122552871704, 'n_evaluated': 82704}
+saved /home/ubuntu/demand-forecasting-dataset-survey/experiments/results/bike_patchtst_headln_3seed_15ep.csv
+saved /home/ubuntu/demand-forecasting-dataset-survey/experiments/results/bike_patchtst_headln_3seed_15ep.json

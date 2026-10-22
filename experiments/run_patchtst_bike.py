@@ -93,7 +93,7 @@ def make_windows(
 
 
 class PatchTST(nn.Module):
-    def __init__(self, cfg: Config, ln_order: str):
+    def __init__(self, cfg: Config, ln_order: str, use_head_ln: bool = False):
         super().__init__()
         n_patches = 1 + (cfg.context - cfg.patch_len) // cfg.stride
         self.patch_len = cfg.patch_len
@@ -115,7 +115,9 @@ class PatchTST(nn.Module):
             norm_first=True,
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=cfg.n_layers)
-        self.head = nn.Linear(n_patches * cfg.d_model, cfg.horizon)
+        head_dim = n_patches * cfg.d_model
+        self.head_ln = nn.LayerNorm(head_dim) if use_head_ln else nn.Identity()
+        self.head = nn.Linear(head_dim, cfg.horizon)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # [B, context] -> [B, patches, patch_len]
@@ -123,7 +125,8 @@ class PatchTST(nn.Module):
         patches = self.pre_projection_ln(patches)
         z = self.post_projection_ln(self.projection(patches))
         z = self.encoder(z + self.position)
-        return self.head(z.flatten(start_dim=1))
+        z = self.head_ln(z.flatten(start_dim=1))
+        return self.head(z)
 
 
 def masked_mse(pred: torch.Tensor, target: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -207,8 +210,9 @@ def train_variant(
         "patchtst": "none",
         "patchtst_ln": "after",
         "patchtst_ln_before": "before",
+        "patchtst_ln_head": "none",
     }[variant]
-    model = PatchTST(cfg, ln_order=ln_order).to(device)
+    model = PatchTST(cfg, ln_order=ln_order, use_head_ln=(variant == "patchtst_ln_head")).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     train_loader = DataLoader(TensorDataset(*[torch.from_numpy(a) for a in train]), batch_size=cfg.batch_size, shuffle=True)
     val_loader = DataLoader(TensorDataset(*[torch.from_numpy(a) for a in val]), batch_size=cfg.batch_size)
@@ -248,7 +252,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--seeds", type=int, nargs="+", default=[13, 42, 2026])
+    parser.add_argument(
+        "--variants",
+        nargs="+",
+        choices=["patchtst", "patchtst_ln", "patchtst_ln_before", "patchtst_ln_head"],
+        default=["patchtst", "patchtst_ln", "patchtst_ln_before"],
+    )
     parser.add_argument("--threads", type=int, default=2)
+    parser.add_argument("--output-prefix", default="bike_patchtst_results")
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
     cfg = Config(epochs=args.epochs)
@@ -280,7 +291,7 @@ def main() -> None:
         print(result)
 
     details = []
-    for variant in ["patchtst", "patchtst_ln", "patchtst_ln_before"]:
+    for variant in args.variants:
         for seed in args.seeds:
             out = train_variant(variant, cfg, seed, splits["train"], splits["val"], splits["test"], mean, std, values[:train_end], device)
             all_results.append(out["result"])
@@ -288,7 +299,9 @@ def main() -> None:
             print(out["result"])
 
     results_df = pd.DataFrame(all_results)
-    results_df.to_csv(OUT / "bike_patchtst_results.csv", index=False)
+    results_csv = OUT / f"{args.output_prefix}.csv"
+    results_json = OUT / f"{args.output_prefix}.json"
+    results_df.to_csv(results_csv, index=False)
     payload = {
         "dataset": "UCI Bike Sharing hourly cnt",
         "source_file": str(DATA.relative_to(ROOT)),
@@ -300,12 +313,14 @@ def main() -> None:
         "normalization": {"fit": "train only", "mean": mean, "std": std},
         "missing_target_policy": "forward-fill for regular input; exclude missing forecast labels from metrics",
         "config": asdict(cfg),
+        "variants": args.variants,
+        "seeds": args.seeds,
         "results": all_results,
         "histories": details,
     }
-    (OUT / "bike_patchtst_results.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print(f"saved {OUT / 'bike_patchtst_results.csv'}")
-    print(f"saved {OUT / 'bike_patchtst_results.json'}")
+    results_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"saved {results_csv}")
+    print(f"saved {results_json}")
 
 
 if __name__ == "__main__":
