@@ -29,7 +29,7 @@ Báo cáo EDA đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_datas
 
 ## Thực nghiệm PatchTST
 
-Thực nghiệm nhanh dùng UCI Bike Sharing, dự báo `cnt` 24 giờ từ 168 giờ trước. Có seasonal-naive làm baseline và so sánh PatchTST gốc với biến thể thêm `LayerNorm` sau phép chiếu tuyến tính của patch. Kết quả trên 3 seed cho thấy PatchTST gốc tốt hơn LayerNorm trên MAE, RMSE và MASE; LayerNorm chỉ tốt hơn trên sMAPE.
+Thực nghiệm nhanh dùng UCI Bike Sharing, dự báo `cnt` 24 giờ từ 168 giờ trước. Có seasonal-naive làm baseline và so sánh ba biến thể: không LayerNorm, `Linear → LayerNorm` và `LayerNorm → Linear` ở patch projection. Kết quả trên 3 seed cho thấy `Linear → LayerNorm` tốt hơn rõ rệt `LayerNorm → Linear` trên mọi metric chính.
 
 ```bash
 python3 eda/scripts/download_data.py

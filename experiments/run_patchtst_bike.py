@@ -5,8 +5,8 @@ Usage:
 
 The experiment is intentionally small and CPU-friendly. It forecasts the next
 24 hourly bike counts from the previous 168 hours using a univariate target.
-The only architectural change between the two neural variants is LayerNorm
-immediately after the 1-D linear patch projection.
+The ablation compares no LayerNorm, LayerNorm after the 1-D linear patch
+projection, and LayerNorm before the projection.
 """
 from __future__ import annotations
 
@@ -93,13 +93,16 @@ def make_windows(
 
 
 class PatchTST(nn.Module):
-    def __init__(self, cfg: Config, use_projection_ln: bool):
+    def __init__(self, cfg: Config, ln_order: str):
         super().__init__()
         n_patches = 1 + (cfg.context - cfg.patch_len) // cfg.stride
         self.patch_len = cfg.patch_len
         self.stride = cfg.stride
+        if ln_order not in {"none", "before", "after"}:
+            raise ValueError(f"Unknown LayerNorm order: {ln_order}")
+        self.pre_projection_ln = nn.LayerNorm(cfg.patch_len) if ln_order == "before" else nn.Identity()
         self.projection = nn.Linear(cfg.patch_len, cfg.d_model)
-        self.projection_ln = nn.LayerNorm(cfg.d_model) if use_projection_ln else nn.Identity()
+        self.post_projection_ln = nn.LayerNorm(cfg.d_model) if ln_order == "after" else nn.Identity()
         self.position = nn.Parameter(torch.zeros(1, n_patches, cfg.d_model))
         nn.init.normal_(self.position, std=0.02)
         encoder_layer = nn.TransformerEncoderLayer(
@@ -117,7 +120,8 @@ class PatchTST(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # [B, context] -> [B, patches, patch_len]
         patches = x.unfold(dimension=-1, size=self.patch_len, step=self.stride)
-        z = self.projection_ln(self.projection(patches))
+        patches = self.pre_projection_ln(patches)
+        z = self.post_projection_ln(self.projection(patches))
         z = self.encoder(z + self.position)
         return self.head(z.flatten(start_dim=1))
 
@@ -199,7 +203,12 @@ def train_variant(
     device: torch.device,
 ) -> dict[str, object]:
     seed_everything(seed)
-    model = PatchTST(cfg, use_projection_ln=(variant == "patchtst_ln")).to(device)
+    ln_order = {
+        "patchtst": "none",
+        "patchtst_ln": "after",
+        "patchtst_ln_before": "before",
+    }[variant]
+    model = PatchTST(cfg, ln_order=ln_order).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     train_loader = DataLoader(TensorDataset(*[torch.from_numpy(a) for a in train]), batch_size=cfg.batch_size, shuffle=True)
     val_loader = DataLoader(TensorDataset(*[torch.from_numpy(a) for a in val]), batch_size=cfg.batch_size)
@@ -271,7 +280,7 @@ def main() -> None:
         print(result)
 
     details = []
-    for variant in ["patchtst", "patchtst_ln"]:
+    for variant in ["patchtst", "patchtst_ln", "patchtst_ln_before"]:
         for seed in args.seeds:
             out = train_variant(variant, cfg, seed, splits["train"], splits["val"], splits["test"], mean, std, values[:train_end], device)
             all_results.append(out["result"])
