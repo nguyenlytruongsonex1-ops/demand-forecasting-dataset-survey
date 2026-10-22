@@ -1,8 +1,8 @@
-# Dự báo nhu cầu: EDA cho UCI Bike Sharing và Beijing PM2.5
+# Dự báo nhu cầu: EDA và thực nghiệm PatchTST trên UCI Bike Sharing và Beijing PM2.5
 
 Repo này tập trung vào **2 bộ chuỗi thời gian công khai, nhẹ, có trích dẫn**: UCI Bike Sharing (UCI 275) và Beijing PM2.5 (UCI 381). Nội dung gồm notebook EDA tiếng Việt đã chạy sẵn output, báo cáo tổng hợp và script tải dữ liệu từ nguồn gốc. Repo không chứa dữ liệu thô.
 
-Báo cáo đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_dataset_du_bao_nhu_cau.pdf) (nguồn Markdown: [docs/Khao_sat_dataset_du_bao_nhu_cau.md](docs/Khao_sat_dataset_du_bao_nhu_cau.md)).
+Báo cáo EDA đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_dataset_du_bao_nhu_cau.pdf) (nguồn Markdown: [docs/Khao_sat_dataset_du_bao_nhu_cau.md](docs/Khao_sat_dataset_du_bao_nhu_cau.md)). Kết quả ablation PatchTST: [experiments/BAO_CAO_PATCHTST_BIKE.md](experiments/BAO_CAO_PATCHTST_BIKE.md).
 
 ## Tóm tắt nhanh
 
@@ -27,6 +27,15 @@ Báo cáo đầy đủ: [Khao_sat_dataset_du_bao_nhu_cau.pdf](Khao_sat_dataset_d
 - Quán tính ngắn: ACF lag1 = 0,965 nhưng lag24 = 0,398, lag168 = 0,023; tháng 2 cao nhất (126), tháng 8 thấp nhất (80).
 - Hướng gió quan trọng: trung bình 126 khi `cbwd = cv`, 70 khi gió NW; Spearman với Iws = −0,36.
 
+## Thực nghiệm PatchTST
+
+Thực nghiệm nhanh dùng UCI Bike Sharing, dự báo `cnt` 24 giờ từ 168 giờ trước. Có seasonal-naive làm baseline và so sánh PatchTST gốc với biến thể thêm `LayerNorm` sau phép chiếu tuyến tính của patch. Kết quả trên 3 seed cho thấy PatchTST gốc tốt hơn LayerNorm trên MAE, RMSE và MASE; LayerNorm chỉ tốt hơn trên sMAPE.
+
+```bash
+python3 eda/scripts/download_data.py
+python3 experiments/run_patchtst_bike.py --epochs 15 --seeds 13 42 2026 --threads 2
+```
+
 ## Cấu trúc repo
 ```
 README.md
@@ -39,6 +48,9 @@ eda/src/eda_utils.py                         Hàm dùng chung (thiếu/trùng, s
 eda/scripts/download_data.py                 Tải dữ liệu gốc vào eda/data/raw/
 eda/scripts/build_notebooks.py               Sinh lại notebook từ mã nguồn
 eda/reports/summary_*.json                   Số liệu tóm tắt do notebook 01–02 sinh ra
+experiments/run_patchtst_bike.py              Runner PatchTST và baseline CPU-friendly
+experiments/BAO_CAO_PATCHTST_BIKE.md         Báo cáo kết quả ablation
+experiments/results/                          CSV/JSON/log của lần chạy
 eda/requirements.txt
 ```
 
